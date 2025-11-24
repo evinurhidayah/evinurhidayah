@@ -31,6 +31,7 @@
             animation: {
               'twinkle': 'twinkle 4s ease-in-out infinite',
               'shoot': 'shoot 3s ease-out forwards', /* Removed infinite to allow random JS triggering */
+              'text-flow': 'text-flow 3s ease infinite',
             },
             keyframes: {
               twinkle: {
@@ -41,6 +42,10 @@
                 '0%': { transform: 'translateX(0) translateY(0) rotate(45deg)', opacity: 0 }, /* Start invisible */
                 '10%': { opacity: 1 }, /* Fade in quickly */
                 '100%': { transform: 'translateX(400px) translateY(400px) rotate(45deg)', opacity: 0 },
+              },
+              'text-flow': {
+                '0%, 100%': { 'background-size': '200% 200%', 'background-position': 'left center' },
+                '50%': { 'background-size': '200% 200%', 'background-position': 'right center' },
               }
             }
           },
