@@ -75,7 +75,7 @@ export const content: ContentData = {
     items: [
       {
         id: 1,
-        title: "TING - AI Driven SaaS", // [cite: 29, 30]
+        title: "TING", // [cite: 29, 30]
         role: "Lead Analyst", // [cite: 34]
         description: "Architected a scalable SaaS ecosystem using Microservices to support high-volume data processing.", // [cite: 32]
         challenge: "Handling massive data loads for multiple modules (Inventory, HRIS, Accounting) while integrating AI document scanning capabilities.", // [cite: 32, 33]
@@ -89,7 +89,7 @@ export const content: ContentData = {
       },
       {
         id: 2,
-        title: "RAMA SAKTI Integration", // [cite: 35, 36]
+        title: "RAMA SAKTI", // [cite: 35, 36]
         role: "System Analyst",
         description: "Designed database architecture and workflows for a travel ticketing system integrated with external accounting software.", // [cite: 38]
         challenge: "The client faced a slow financial reporting cycle (3 months) and disconnected data between booking systems and finance.", // [cite: 39]
@@ -131,8 +131,22 @@ export const content: ContentData = {
       },
       {
         id: 5,
-        title: "ISIIN - Multi-Payment App", // [cite: 53, 54]
+        title: "HR MANAGEMENT",
         role: "System Analyst",
+        description: "Comprehensive HRIS application for attendance tracking, leave management, and automated reporting using BigQuery.",
+        challenge: "Ineffective manual attendance recording and difficulty in managing large volumes of historical attendance data for reporting.",
+        solution: "Leveraged BigQuery technology to architect a scalable data warehouse capable of handling high-volume attendance logs. Designed the approval workflow logic for leave requests (Employee to HR). Structured the data models to facilitate rapid generation of attendance recaps and insights for HR administrators.",
+        technologies: ["BigQuery", "HRIS Architecture", "Database Design", "System Flow"],
+        results: [
+            "Increased effectiveness and accuracy of attendance recording.",
+            "Streamlined the leave request and approval process.",
+            "Enabled fast processing of large-scale attendance data for reporting."
+        ]
+      },
+      {
+        id: 6,
+        title: "ISIIN", // [cite: 53, 54]
+        role: "Lead Analyst",
         description: "Designed complex business flows and system logic for a multi-biller payment application (PPOB).", // [cite: 56]
         challenge: "Ensuring transaction accuracy and speed across various payment integrations.", // [cite: 56]
         solution: "Architected a unified payment abstraction layer supporting 15+ billers (electricity, water, phone, internet) with standardized request/response formats. Designed idempotent transaction handling with unique reference IDs to prevent duplicate charges. Implemented retry mechanisms with exponential backoff for failed API calls and circuit breaker patterns to handle provider outages gracefully. Created detailed sequence diagrams showing transaction flows from user selection to settlement confirmation. Established a reconciliation engine that cross-checks transactions against biller statements daily. Collaborated closely with UI/UX team through iterative wireframe reviews, ensuring complex payment flows remained intuitive with clear error messaging and loading states. Built comprehensive test scenarios covering edge cases like network timeouts and partial failures.", // [cite: 57, 58]
@@ -141,6 +155,48 @@ export const content: ContentData = {
           "Ensured transaction accuracy and speed.", // [cite: 56]
           "Delivered a seamless and secure user experience.", // [cite: 58]
           "Translated functional requirements into an intuitive interface." // [cite: 57]
+        ]
+      },
+      {
+        id: 7, 
+        title: "UTY CREATIVE HUB APP",
+        role: "System Analyst",
+        description: "Mobile application for booking and managing workspace usage at UTY Creative Hub.",
+        challenge: "Manual room booking processes often led to double-bookings, difficulty in tracking real-time availability, and inefficient space utilization.",
+        solution: "Designed a relational database schema to handle complex scheduling logic, ensuring zero conflicts in room reservations. Created comprehensive system flowcharts to map the user journey from room search to booking confirmation. Defined the logic for availability status updates and user notification triggers to ensure a smooth booking experience.",
+        technologies: ["Mobile App Logic", "Database Design", "System Flow", "Booking System"],
+        results: [
+            "Eliminated booking conflicts through robust database constraints.",
+            "Streamlined the room reservation process for hub members.",
+            "Improved visibility of room availability in real-time."
+        ]
+      },
+      {
+        id: 8,
+        title: "SINDIKAT",
+        role: "System Analyst",
+        description: "Deep learning-based system for real-time detection of criminal activities via audio analysis across multiple devices.",
+        challenge: "Traditional surveillance relies heavily on visual feeds, often missing critical audio cues (screams, disturbances) and suffering from delayed response times in emergencies.",
+        solution: "Architected the end-to-end system flow for processing multi-device audio streams in real-time. Designed the logic for data ingestion, pre-processing, and integration with the Deep Learning model to identify specific sound patterns. Mapped the alert trigger mechanism to ensure immediate notification upon detection of suspicious audio events.",
+        technologies: ["Deep Learning Integration", "System Architecture", "Real-time Analysis", "Multi-device Support"],
+        results: [
+            "Enabled real-time detection of suspicious audio anomalies.",
+            "Facilitated smarter and faster security monitoring responses.",
+            "Successfully integrated multi-device support for broader coverage."
+        ]
+      },
+      {
+        id: 9,
+        title: "CREDIWISE",
+        role: "System Analyst",
+        description: "Web-based loan eligibility determination system utilizing the Tsukamoto Fuzzy Inference System.",
+        challenge: "High rates of loan defaults caused by rigid or subjective assessment criteria that failed to account for variable applicant conditions.",
+        solution: "Designed the complete database structure to store applicant variables and historical data. Architected the system flow to implement the Tsukamoto Fuzzy Inference System algorithm, translating complex fuzzy logic rules into a structured calculation engine. Defined the decision-making logic to accurately categorize loan eligibility based on multi-variable inputs.",
+        technologies: ["Fuzzy Inference System (Tsukamoto)", "Database Design", "Web System Flow", "Risk Analysis"],
+        results: [
+            "Significantly reduced the rate of loan defaults (Non-Performing Loans).",
+            "Automated the credit scoring process with consistent logic.",
+            "Improved accuracy in assessing borrower eligibility."
         ]
       }
     ]
@@ -188,7 +244,7 @@ export const content: ContentData = {
     ]
   },
   cv: {
-      url: "https://pub-093d9db34ecc4dfbb984eac2762f7f68.r2.dev/CV%20-%20Evi%20Nur%20Hidayah%20-%20Bahasa%20Inggris.pdf", 
+      url: "https://pub-093d9db34ecc4dfbb984eac2762f7f68.r2.dev/CV%20-%20Evi%20Nur%20Hidayah%20-%20Bahasa%20Inggris.pdf ", 
       filename: "Evi_Nur_Hidayah_CV.pdf"
-  }
+  }
 };
