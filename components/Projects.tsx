@@ -27,14 +27,14 @@ const Projects: React.FC<ProjectsProps> = ({ onProjectClick }) => {
       </MotionH3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {projects.items.map((project, index) => (
+        {projects.items.map((project) => (
           <MotionDiv
             key={project.id}
             onClick={() => onProjectClick(project)}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: index * 0.1, duration: 0.4 }} 
+            transition={{ delay: (project.id - 1) * 0.1, duration: 0.4 }} 
             whileHover={{ y: -5 }} 
             className="h-full bg-space-900/90 border border-white/10 rounded-2xl p-6 relative overflow-hidden group cursor-pointer flex flex-col shadow-lg hover:shadow-nebula-pink/10 transform-gpu"
           >
