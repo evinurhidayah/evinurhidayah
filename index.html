@@ -1,0 +1,117 @@
+
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evi - System Analyst</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Outfit', 'sans-serif'],
+              mono: ['Space Grotesk', 'monospace'],
+            },
+            colors: {
+              space: {
+                950: '#0f0518',
+                900: '#1a0b2e',
+                800: '#2d1b4e',
+              },
+              nebula: {
+                pink: '#ff00cc',
+                deep: '#b700ff',
+                light: '#ff99cc',
+                cyan: '#00f0ff',
+              }
+            },
+            animation: {
+              'twinkle': 'twinkle 4s ease-in-out infinite',
+              'shoot': 'shoot 3s ease-out forwards', /* Removed infinite to allow random JS triggering */
+            },
+            keyframes: {
+              twinkle: {
+                '0%, 100%': { opacity: '0.3', transform: 'scale(0.8)' },
+                '50%': { opacity: '1', transform: 'scale(1.2)' },
+              },
+              shoot: {
+                '0%': { transform: 'translateX(0) translateY(0) rotate(45deg)', opacity: 0 }, /* Start invisible */
+                '10%': { opacity: 1 }, /* Fade in quickly */
+                '100%': { transform: 'translateX(400px) translateY(400px) rotate(45deg)', opacity: 0 },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        background-color: #0f0518;
+        /* Static gradient is strictly cheaper */
+        background-image: radial-gradient(circle at 50% 0%, #1a0b2e 0%, #0f0518 70%);
+        color: white;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility; /* Improved typography clarity */
+      }
+      
+      /* LIGHTWEIGHT TEXT SHADOW: No spread radius, just offset */
+      .text-glow {
+        text-shadow: 0 0 10px rgba(255, 0, 204, 0.5);
+      }
+      
+      .text-glow-sm {
+        text-shadow: 0 0 5px rgba(255, 0, 204, 0.3);
+      }
+
+      /* COMPOSITOR ONLY HINTS */
+      .will-change-opacity {
+        will-change: opacity;
+      }
+      
+      .will-change-transform {
+        will-change: transform;
+      }
+
+      /* Custom scrollbar - Standard */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0f0518;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #b700ff;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #ff00cc;
+      }
+      
+      @media (min-width: 768px) {
+        a, button, .cursor-pointer {
+          cursor: none;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
