@@ -4,7 +4,7 @@ export const content: ContentData = {
   hero: {
     name: "Evi Nur Hidayah", // [cite: 1]
     role: "System Analyst", // [cite: 2]
-    tagline: "Translating business requirements into scalable SaaS architectures and Microservices ecosystems.", // [cite: 5, 6]
+    tagline: "Translating complex business requirements into scalable system architectures and robust technical solutions.", // [cite: 5, 6]
     buttonText: "View My Resume"
   },
   about: {
@@ -244,7 +244,7 @@ export const content: ContentData = {
     ]
   },
   cv: {
-      url: "https://pub-093d9db34ecc4dfbb984eac2762f7f68.r2.dev/CV%20-%20Evi%20Nur%20Hidayah%20-%20Bahasa%20Inggris.pdf", 
+      url: "https://pub-093d9db34ecc4dfbb984eac2762f7f68.r2.dev/CV%20-%20Evi%20Nur%20Hidayah%20-%20Bahasa%20Inggris%20(1).pdf", 
       filename: "Evi_Nur_Hidayah_CV.pdf"
   }
 };
