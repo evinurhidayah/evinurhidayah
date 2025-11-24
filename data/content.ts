@@ -184,11 +184,11 @@ export const content: ContentData = {
     socials: [
         { label: "Email", href: "mailto:evinurhidayahh@gmail.com", iconName: "mail" }, // [cite: 3]
         { label: "LinkedIn", href: "https://linkedin.com/in/evinurhidayah/", iconName: "linkedin" }, // [cite: 3]
-        { label: "Website", href: "https://evinur.vercel.app", iconName: "globe" } // [cite: 3]
+        { label: "Website", href: "https://evinurhidayah.vercel.app", iconName: "globe" } // [cite: 3]
     ]
   },
   cv: {
-      url: "/CV-EviNurHidayah.pdf", 
+      url: "https://pub-093d9db34ecc4dfbb984eac2762f7f68.r2.dev/CV%20-%20Evi%20Nur%20Hidayah%20-%20Bahasa%20Inggris.pdf", 
       filename: "Evi_Nur_Hidayah_CV.pdf"
   }
 };
