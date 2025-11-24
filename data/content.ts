@@ -12,7 +12,7 @@ export const content: ContentData = {
     storyTitle: "The Origin Story",
     story: [
       "My journey is defined by bridging the gap between business needs and IT execution. As a Business System Analyst, I specialize in designing complex application ecosystems.", // [cite: 5, 20]
-      "I have led development teams of 15+ programmers, ensuring that every sprint delivers value through precise technical specifications like PRD, ERD, and UML.", // [cite: 6, 10]
+      "I have led development teams of 15+ programmers, ensuring that every sprint delivers value through precise technical specifications like PRD, ERD, and UML.", // [cite: 10, 6]
       "From integrating Big Data technologies like BigQuery to architecting Microservices, I focus on building solutions that are not just functional, but scalable and data-driven." // [cite: 5, 17]
     ],
     softSkills: [
@@ -23,7 +23,7 @@ export const content: ContentData = {
       },
       {
         title: "Strategic Analysis",
-        desc: "Translating complex business requirements into actionable technical specifications (PRD/ERD).", // [cite: 6, 20]
+        desc: "Translating complex business requirements into actionable technical specifications (PRD/ERD).", // [cite: 6, 26]
         iconName: "brain"
       },
       {
@@ -48,7 +48,7 @@ export const content: ContentData = {
       {
         degree: "PKM-KC Funding Recipient", // [cite: 69]
         school: "SINDIKAT Deep Learning Project", // [cite: 69]
-        year: "2024", 
+        year: "2024",
         iconName: "award"
       }
     ],
@@ -78,22 +78,22 @@ export const content: ContentData = {
         title: "TING - AI Driven SaaS", // [cite: 29, 30]
         role: "Lead Analyst", // [cite: 34]
         description: "Architected a scalable SaaS ecosystem using Microservices to support high-volume data processing.", // [cite: 32]
-        challenge: "The system required handling massive data loads for multiple modules (Inventory, HRIS, Accounting) while integrating AI document scanning capabilities.", // [cite: 33]
-        solution: "Designed a Microservices architecture utilizing BigQuery and Big Table for data handling, and led a team of 15+ developers to execute the vision.", // [cite: 32, 34]
+        challenge: "Handling massive data loads for multiple modules (Inventory, HRIS, Accounting) while integrating AI document scanning capabilities.", // [cite: 32, 33]
+        solution: "Designed a comprehensive Microservices architecture with event-driven communication patterns. Implemented BigQuery for real-time analytics and Big Table for high-throughput transactional data. Created detailed ERD diagrams for each module, established API contracts using OpenAPI specifications, and developed a centralized logging system for distributed tracing. Led sprint planning with 15+ developers, ensuring each service maintained data consistency through saga patterns and eventual consistency models.", // [cite: 32, 34]
         technologies: ["Microservices", "BigQuery", "Big Table", "AI Integration", "SaaS Architecture"], // [cite: 32]
         results: [
-          "successfully led a team of 15+ programmers.", // [cite: 34]
+          "Successfully led a team of 15+ programmers.", // [cite: 34]
           "Designed end-to-end business processes for 7+ major modules.", // [cite: 33]
           "Ensured precise translation of requirements into technical specs." // [cite: 34]
         ]
       },
       {
         id: 2,
-        title: "RAMA SAKTI Integration", // [cite: 35]
-        role: "System Analyst", // [cite: 2]
+        title: "RAMA SAKTI Integration", // [cite: 35, 36]
+        role: "System Analyst",
         description: "Designed database architecture and workflows for a travel ticketing system integrated with external accounting software.", // [cite: 38]
-        challenge: "The client faced a slow financial reporting cycle and disconnected data between booking systems and the finance department.", // [cite: 39, 40]
-        solution: "Implemented a seamless integration with Accurate Accounting Software and streamlined operational workflows for real-time sync.", // [cite: 38, 40]
+        challenge: "The client faced a slow financial reporting cycle (3 months) and disconnected data between booking systems and finance.", // [cite: 39]
+        solution: "Conducted thorough analysis of existing booking and finance workflows, identifying 12 critical data touchpoints. Designed a normalized database schema with proper foreign key relationships to ensure referential integrity. Built an automated ETL pipeline that extracts booking data, transforms it into Accurate-compatible format, and loads it via their REST API. Implemented scheduled batch processing for historical data reconciliation and real-time webhooks for new transactions. Created comprehensive data flow diagrams (BPMN) and established SLA monitoring dashboards to track sync success rates.", // [cite: 38, 40]
         technologies: ["Accurate Integration", "SQL", "Database Design", "System Flow"], // [cite: 38]
         results: [
           "Reduced financial reporting cycle from 3 months to just 1 month.", // [cite: 39]
@@ -103,16 +103,44 @@ export const content: ContentData = {
       },
       {
         id: 3,
-        title: "Customer Support App", // [cite: 47]
+        title: "DEMO APP", // [cite: 41]
+        role: "System Analyst",
+        description: "Developed system flows and structures for an interactive product demo application.", // [cite: 44]
+        challenge: "Sales presentations lacked consistency and standardization across the team.", // [cite: 44, 45]
+        solution: "Mapped the entire sales journey through user story mapping sessions with stakeholders. Designed wireframes in Figma for 8 presentation templates covering different product modules. Built a centralized content management database with version control to ensure all teams use the latest approved materials. Developed a role-based access system where sales managers can approve demo scenarios. Integrated analytics tracking to capture which demo features resonate most with prospects. Created KPI dashboards showing demo effectiveness, conversion rates, and content engagement metrics. Conducted hands-on training workshops for 20+ sales team members with documented SOPs.", // [cite: 44, 45]
+        technologies: ["Wireframing", "Database Structure", "KPI Monitoring"], // [cite: 44, 46]
+        results: [
+          "Significantly improved presentation consistency and quality.", // [cite: 45]
+          "Enabled data-driven decision making via KPI monitoring.", // [cite: 46]
+          "Standardized sales presentations." // [cite: 44]
+        ]
+      },
+      {
+        id: 4,
+        title: "SUPPORT APP", // [cite: 47]
         role: "System Analyst",
         description: "Engineered the logic and database for a ticketing system featuring payment gateway integration.", // [cite: 50]
-        challenge: "The company needed to optimize case resolution workflows and improve performance in handling technical client issues.", // [cite: 51]
-        solution: "Developed a transparent platform with Midtrans payment integration and optimized case resolution logic.", // [cite: 50, 51]
+        challenge: "Need to optimize case resolution workflows and improve performance in handling technical client issues.", // [cite: 51]
+        solution: "Designed a multi-tier ticketing system with intelligent routing algorithms based on issue category, priority, and agent expertise. Created state machine diagrams defining 7 ticket lifecycle stages with automatic escalation rules for SLA violations. Integrated Midtrans payment gateway for premium support subscriptions with webhook handling for payment confirmations. Built a knowledge base system where resolved tickets automatically generate solution articles using AI categorization. Implemented real-time notification system via WebSockets and email triggers. Designed comprehensive wireframes for both client portal and agent dashboard with mobile-responsive layouts. Established database indexes for fast ticket search and reporting queries.", // [cite: 50, 51]
         technologies: ["Midtrans Gateway", "Wireframing", "Logic Design", "Database Architecture"], // [cite: 50]
         results: [
           "Directly enhanced performance in handling client issues.", // [cite: 51]
           "Increased client satisfaction and trust.", // [cite: 52]
-          "Created a user-friendly platform for issue reporting." // [cite: 52]
+          "Provided a transparent and user-friendly platform." // [cite: 52]
+        ]
+      },
+      {
+        id: 5,
+        title: "ISIIN - Multi-Payment App", // [cite: 53, 54]
+        role: "System Analyst",
+        description: "Designed complex business flows and system logic for a multi-biller payment application (PPOB).", // [cite: 56]
+        challenge: "Ensuring transaction accuracy and speed across various payment integrations.", // [cite: 56]
+        solution: "Architected a unified payment abstraction layer supporting 15+ billers (electricity, water, phone, internet) with standardized request/response formats. Designed idempotent transaction handling with unique reference IDs to prevent duplicate charges. Implemented retry mechanisms with exponential backoff for failed API calls and circuit breaker patterns to handle provider outages gracefully. Created detailed sequence diagrams showing transaction flows from user selection to settlement confirmation. Established a reconciliation engine that cross-checks transactions against biller statements daily. Collaborated closely with UI/UX team through iterative wireframe reviews, ensuring complex payment flows remained intuitive with clear error messaging and loading states. Built comprehensive test scenarios covering edge cases like network timeouts and partial failures.", // [cite: 57, 58]
+        technologies: ["Payment Integration", "System Logic", "UI/UX Collaboration"], // [cite: 57, 58]
+        results: [
+          "Ensured transaction accuracy and speed.", // [cite: 56]
+          "Delivered a seamless and secure user experience.", // [cite: 58]
+          "Translated functional requirements into an intuitive interface." // [cite: 57]
         ]
       }
     ]
@@ -135,14 +163,14 @@ export const content: ContentData = {
       {
         id: 3,
         title: "Design",
-        description: "Creating optimized ERDs, UML diagrams, and Wireframes to ensure data integrity and provide a clear guide for developers.", // [cite: 27, 44]
+        description: "Creating optimized ERDs, UML diagrams, and Wireframes to ensure data integrity and provide a clear guide for developers.", // [cite: 27, 60]
         icon: "design"
       }
     ]
   },
   footer: {
     brandName: "Evi", // [cite: 1]
-    mission: "Architecting scalable digital solutions. Turning complex requirements into elegant system logic.", // [cite: 5, 6]
+    mission: "Architecting scalable digital solutions. Turning complex requirements into elegant system logic.", // [cite: 6]
     coordinatesTitle: "Coordinates",
     coordinates: [
       { label: 'Home', href: '#hero' },
@@ -154,13 +182,13 @@ export const content: ContentData = {
     connectText: "Ready to optimize your system architecture? I'm available for new projects.",
     copyright: "All rights reserved.",
     socials: [
-        { label: "Email", href: "mailto:evinurhidayahh@gmail.com", iconName: "mail" }, // 
-        { label: "LinkedIn", href: "https://linkedin.com/in/evinurhidayah/", iconName: "linkedin" }, // 
-        { label: "Website", href: "https://evinurhidayah.vercel.app", iconName: "globe" } // 
+        { label: "Email", href: "mailto:evinurhidayahh@gmail.com", iconName: "mail" }, // [cite: 3]
+        { label: "LinkedIn", href: "https://linkedin.com/in/evinurhidayah/", iconName: "linkedin" }, // [cite: 3]
+        { label: "Website", href: "https://evinur.vercel.app", iconName: "globe" } // [cite: 3]
     ]
   },
   cv: {
-      url: "https://pub-093d9db34ecc4dfbb984eac2762f7f68.r2.dev/CV%20-%20Evi%20Nur%20Hidayah%20-%20Bahasa%20Inggris.pdf", // Placeholder path based on user context
+      url: "/CV-EviNurHidayah.pdf", 
       filename: "Evi_Nur_Hidayah_CV.pdf"
   }
 };
