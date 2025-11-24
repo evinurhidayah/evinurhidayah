@@ -1,6 +1,4 @@
 
-import { ReactNode } from 'react';
-
 export interface Project {
   id: number;
   title: string;
@@ -28,7 +26,7 @@ export interface TechCategory {
 export interface SoftSkill {
   title: string;
   desc: string;
-  iconName: 'brain' | 'message' | 'zap';
+  iconName: 'brain' | 'message' | 'zap' | 'users';
 }
 
 export interface Education {
@@ -41,7 +39,7 @@ export interface Education {
 export interface SocialLink {
   label: string;
   href: string;
-  iconName: 'mail' | 'linkedin' | 'github' | 'twitter';
+  iconName: 'mail' | 'linkedin' | 'github' | 'twitter' | 'globe';
 }
 
 export interface NavLink {
