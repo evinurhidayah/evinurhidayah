@@ -39,7 +39,7 @@ export interface Education {
 export interface SocialLink {
   label: string;
   href: string;
-  iconName: 'mail' | 'linkedin' | 'github' | 'twitter' | 'globe';
+  iconName: 'mail' | 'linkedin' | 'github' | 'twitter' | 'globe' | 'instagram';
 }
 
 export interface NavLink {

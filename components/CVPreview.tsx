@@ -41,7 +41,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({ onBack }) => {
               className="flex items-center gap-2 text-white/70 hover:text-nebula-pink transition-colors group font-mono text-sm cursor-pointer self-start md:self-auto"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-              ABORT SEQUENCE
+              BACK TO UNIVERSE
             </button>
 
             <div className="flex gap-4">
@@ -60,7 +60,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({ onBack }) => {
                   className="flex items-center gap-2 px-6 py-2 rounded-lg bg-nebula-pink/20 border border-nebula-pink/50 text-white hover:bg-nebula-pink/40 transition-all cursor-pointer font-bold tracking-wide"
                 >
                   <Download className="w-4 h-4" />
-                  DOWNLOAD PROTOCOL
+                  DOWNLOAD CV
                 </a>
             </div>
         </div>

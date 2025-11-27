@@ -240,7 +240,7 @@ export const content: ContentData = {
     socials: [
         { label: "Email", href: "mailto:evinurhidayahh@gmail.com", iconName: "mail" }, // [cite: 3]
         { label: "LinkedIn", href: "https://linkedin.com/in/evinurhidayah/", iconName: "linkedin" }, // [cite: 3]
-        { label: "Website", href: "https://evinurhidayah.vercel.app", iconName: "globe" } // [cite: 3]
+        { label: "Instagram", href: "https://www.instagram.com/evinhdy", iconName: "instagram" } // [cite: 3]
     ]
   },
   cv: {

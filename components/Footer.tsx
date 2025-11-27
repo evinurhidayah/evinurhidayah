@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Mail, Linkedin, Github, Twitter, Globe } from 'lucide-react';
+import { Mail, Linkedin, Github, Twitter, Globe, Instagram } from 'lucide-react';
 import { content } from '../data/content';
 
 const Footer: React.FC = () => {
@@ -14,6 +14,7 @@ const Footer: React.FC = () => {
           case 'github': return <Github className="w-5 h-5" />;
           case 'twitter': return <Twitter className="w-5 h-5" />;
           case 'globe': return <Globe className="w-5 h-5" />;
+          case 'instagram': return <Instagram className="w-5 h-5" />;
           default: return <Mail className="w-5 h-5" />;
       }
   }
