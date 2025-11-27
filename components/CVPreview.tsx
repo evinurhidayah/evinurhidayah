@@ -78,7 +78,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({ onBack }) => {
             {/* Header Bar inside Frame */}
             <div className="relative z-10 bg-space-950/80 p-3 rounded-t-xl border-b border-white/10 flex items-center gap-3">
                 <FileText className="w-5 h-5 text-nebula-cyan" />
-                <span className="text-sm font-mono text-white/70 tracking-widest uppercase">System_Log_V1.0.pdf</span>
+                <span className="text-sm font-mono text-white/70 tracking-widest uppercase">{cv.filename}</span>
                 <div className="ml-auto flex gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-500/50" />
                     <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
