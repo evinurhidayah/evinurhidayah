@@ -89,9 +89,9 @@ const Timeline: React.FC = () => {
                     
                     {/* Mobile Only: Connector Line to text */}
                     {/* Fix: left-12 to center align with the icon (16px padding + 32px half-icon width) */}
-                    {!isLast && (
+                    {/* {!isLast && (
                         <div className="md:hidden absolute left-12 top-16 bottom-[-48px] w-[2px] bg-white/10 -z-10" />
-                    )}
+                    )} */}
                 </div>
 
                 {/* Right Side (Content or Spacer) */}

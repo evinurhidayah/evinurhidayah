@@ -26,7 +26,7 @@ export interface TechCategory {
 export interface SoftSkill {
   title: string;
   desc: string;
-  iconName: 'brain' | 'message' | 'zap' | 'users';
+  iconName: 'brain' | 'users' | 'zap';
 }
 
 export interface Education {
@@ -36,10 +36,18 @@ export interface Education {
   iconName: 'grad' | 'award';
 }
 
+export interface Experience {
+  id: number;
+  role: string;
+  company: string;
+  period: string;
+  description: string;
+}
+
 export interface SocialLink {
   label: string;
   href: string;
-  iconName: 'mail' | 'linkedin' | 'github' | 'twitter' | 'globe' | 'instagram';
+  iconName: 'mail' | 'linkedin' | 'github' | 'twitter' | 'instagram';
 }
 
 export interface NavLink {
@@ -58,6 +66,8 @@ export interface ContentData {
     title: string;
     storyTitle: string;
     story: string[];
+    experienceTitle: string;
+    experience: Experience[];
     softSkills: SoftSkill[];
     education: Education[];
     techStack: {
