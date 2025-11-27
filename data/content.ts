@@ -78,7 +78,7 @@ export const content: ContentData = {
         title: "TING", // [cite: 29, 30]
         role: "Lead Analyst", // [cite: 34]
         description: "Architected a scalable SaaS ecosystem using Microservices to support high-volume data processing.", // [cite: 32]
-        challenge: "Handling massive data loads for multiple modules (Inventory, HRIS, Accounting) while integrating AI document scanning capabilities.", // [cite: 32, 33]
+        challenge: "Handling massive data loads for multiple modules (Inventory, HRIS, Accounting, etc) while integrating AI document scanning capabilities.", // [cite: 32, 33]
         solution: "Designed a comprehensive Microservices architecture with event-driven communication patterns. Implemented BigQuery for real-time analytics and Big Table for high-throughput transactional data. Created detailed ERD diagrams for each module, established API contracts using OpenAPI specifications, and developed a centralized logging system for distributed tracing. Led sprint planning with 15+ developers, ensuring each service maintained data consistency through saga patterns and eventual consistency models.", // [cite: 32, 34]
         technologies: ["Microservices", "BigQuery", "Big Table", "AI Integration", "SaaS Architecture"], // [cite: 32]
         results: [
