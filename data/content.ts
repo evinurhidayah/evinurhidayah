@@ -1,4 +1,3 @@
-
 import { ContentData } from '../types';
 
 export const content: ContentData = {
@@ -20,24 +19,24 @@ export const content: ContentData = {
     experience: [
       {
         id: 1,
-        role: "Lead System Analyst",
-        company: "Software Development Projects",
-        period: "2023 - Present",
-        description: "Led a team of 15+ programmers. Architected scalable SaaS ecosystems (TING, ISIIN) using Microservices and Event-Driven patterns."
+        role: "Business System Analyst",
+        company: "PT Horus Technology Indonesia",
+        period: "July 2025 - Present",
+        description: "Leading system analysis and architecture design for enterprise applications"
       },
       {
         id: 2,
-        role: "System Analyst",
-        company: "Freelance / Contract",
-        period: "2021 - 2023",
-        description: "Designed database architectures and workflows for financial (RAMA SAKTI) and HR systems. Specialized in reducing reporting cycles and optimizing data flow."
+        role: "Business System Analyst (Intern)",
+        company: "PT Horus Technology Indonesia",
+        period: "January 2025 - June 2025",
+        description: "Supporting system analysis and technical documentation"
       },
       {
         id: 3,
-        role: "Data Engineering Project Lead",
-        company: "SINDIKAT / UTY",
-        period: "2024",
-        description: "Architected Deep Learning-based audio detection systems. Managed data ingestion pipelines and real-time analysis flows."
+        role: "System Analyst",
+        company: "Libur Ngoding",
+        period: "August 2023 - November 2024",
+        description: "Coordinated development teams and created technical specifications"
       }
     ],
     softSkills: [
@@ -271,5 +270,5 @@ export const content: ContentData = {
   cv: {
       url: "https://pub-093d9db34ecc4dfbb984eac2762f7f68.r2.dev/CV%20-%20Evi%20Nur%20Hidayah%20-%20Bahasa%20Inggris%20(1).pdf", 
       filename: "Evi_Nur_Hidayah_CV.pdf"
-  }
+  }
 };
