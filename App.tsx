@@ -10,6 +10,7 @@ import Footer from './components/Footer';
 import MagicCursor from './components/MagicCursor';
 import ProjectDetail from './components/ProjectDetail';
 import CVPreview from './components/CVPreview';
+import LunaChat from './components/LunaChat';
 import { Project } from './types';
 
 const App: React.FC = () => {
@@ -23,6 +24,7 @@ const App: React.FC = () => {
     <main className="min-h-screen bg-space-950 text-white relative selection:bg-nebula-pink selection:text-white md:cursor-none cursor-auto font-sans">
       <MagicCursor />
       <StarBackground />
+      <LunaChat />
       
       <AnimatePresence>
         {selectedProject && (
