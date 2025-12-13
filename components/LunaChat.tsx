@@ -21,9 +21,9 @@ const LunaChat: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { 
+  { 
       role: 'assistant', 
-      content: "Halo! Saya Luna v2.0. Sistem telah diinisialisasi. Bagaimana saya bisa membantu Anda mengenai portfolio Evi hari ini?",
+      content: "Halo! Saya Luna 👋 AI Assistant yang bisa menjawab semua pertanyaan Anda seputar Evi dan portfolionya. Bagaimana saya bisa membantu Anda mengenai portfolio Evi hari ini?",
       isStreaming: false
     }
   ]);
