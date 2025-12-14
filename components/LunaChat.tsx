@@ -26,7 +26,7 @@ import {
 } from '../utils/aiTools';
 import { buildOptimizedContext } from '../utils/aiOptimizer';
 import { validateOptimizedContext } from '../utils/portfolioContextValidator';
-import { buildDeterministicPortfolioSummary } from '../utils/portfolioSummary';
+import { buildDeterministicPortfolioSummary, buildRoutedPortfolioContext } from '../utils/portfolioSummary';
 import { 
   createReasoningEngine,
   ReasoningEngine,
@@ -236,9 +236,10 @@ IMPORTANT TOOL FORMAT:
     if (disableTools) telemetryRef.current.bump('tools_disabled_identity');
 
     // For identity/portfolio questions, provide deterministic facts built from content.ts
-    // to prevent hallucinated tech stacks.
+    // to prevent hallucinated tech stacks. Use a token-saving router to include only the
+    // relevant portfolio sections for the current question.
     const portfolioFacts = disableTools
-      ? buildDeterministicPortfolioSummary(content)
+      ? buildRoutedPortfolioContext(content, userMessage)
       : null;
     const groundedSystemPrompt = portfolioFacts
   ? `${systemPrompt}

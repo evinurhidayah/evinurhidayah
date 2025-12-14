@@ -10,6 +10,15 @@ export interface PortfolioSummaryOptions {
   maxFooterLinks?: number;
 }
 
+export type RoutedPortfolioMode =
+  | 'base'
+  | 'all-projects'
+  | 'project'
+  | 'education'
+  | 'soft-skills'
+  | 'timeline'
+  | 'contact';
+
 const uniq = (items: string[]) => {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -172,4 +181,186 @@ export function buildDeterministicPortfolioSummary(
   ].filter(Boolean).join('\n');
 
   return { factsBlock, allowedTech };
+}
+
+const normalize = (s: string) => (s || '').toLowerCase().trim();
+
+const pickProjectByTitleHint = (content: ContentData, userMessage: string) => {
+  const msg = normalize(userMessage);
+  const items = Array.isArray(content.projects?.items) ? content.projects!.items : [];
+  if (!items.length) return null;
+
+  // Try exact title match first
+  for (const p of items) {
+    const title = normalize(p.title || '');
+    if (title && msg.includes(title)) return p;
+  }
+
+  // Common shorthand: remove spaces
+  const compact = msg.replace(/\s+/g, '');
+  for (const p of items) {
+    const title = normalize(p.title || '').replace(/\s+/g, '');
+    if (title && compact.includes(title)) return p;
+  }
+
+  return null;
+};
+
+export function detectRoutedPortfolioMode(content: ContentData, userMessage: string): RoutedPortfolioMode {
+  const msg = normalize(userMessage);
+
+  const asksAllProjects = /(semua\s+proyek|daftar\s+proyek|list\s+proyek|proyek\s+apa\s+saja)/i.test(msg);
+  if (asksAllProjects) return 'all-projects';
+
+  // If user mentions a known project title, go project mode.
+  if (pickProjectByTitleHint(content, msg)) return 'project';
+
+  if (/(pendidikan|kuliah|education|sertif|cert|universitas)/i.test(msg)) return 'education';
+  if (/(soft\s*skill|softskill|leadership|kepemimpinan|team|tim)/i.test(msg)) return 'soft-skills';
+  if (/(timeline|process|proses|tahapan|metode|workflow)/i.test(msg)) return 'timeline';
+  if (/(kontak|contact|linkedin|instagram|email|cv|resume)/i.test(msg)) return 'contact';
+
+  return 'base';
+}
+
+/**
+ * Token-saving router: builds a minimal, question-targeted facts block.
+ * - Default 'base' is compact.
+ * - Still deterministic + grounded to content.ts.
+ */
+export function buildRoutedPortfolioContext(
+  content: ContentData,
+  userMessage: string
+): {
+  mode: RoutedPortfolioMode;
+  factsBlock: string;
+  allowedTech: string[];
+} {
+  const { allowedTech } = buildDeterministicPortfolioSummary(content, {
+    // allowedTech should include everything (for validation), but the factsBlock can be small.
+    maxProjects: Number.POSITIVE_INFINITY,
+    maxProjectTech: Number.POSITIVE_INFINITY,
+    maxStoryLines: Number.POSITIVE_INFINITY,
+    maxSoftSkills: Number.POSITIVE_INFINITY,
+    maxEducation: Number.POSITIVE_INFINITY,
+    maxTimelineSteps: Number.POSITIVE_INFINITY,
+    maxFooterLinks: Number.POSITIVE_INFINITY,
+  });
+
+  const mode = detectRoutedPortfolioMode(content, userMessage);
+
+  const name = content.hero?.name ?? 'Evi Nur Hidayah';
+  const role = content.hero?.role ?? 'System Analyst';
+  const tagline = content.hero?.tagline ?? '';
+
+  const items = Array.isArray(content.projects?.items) ? content.projects!.items : [];
+
+  // Compact base: identity + 1-2 story lines + tech stack headings + project titles.
+  if (mode === 'base') {
+    const story = Array.isArray(content.about?.story) ? content.about!.story.slice(0, 2) : [];
+    const techStack = content.about?.techStack;
+    const techModeling = techStack?.modeling?.skills ?? [];
+    const techData = techStack?.data?.skills ?? [];
+    const techTools = techStack?.tools?.skills ?? [];
+    const projectTitles = items.map((p) => p.title).filter(Boolean);
+
+    const factsBlock = [
+      `**SOURCE OF TRUTH (content.ts)**`,
+      `Name: ${name}`,
+      `Primary Role: ${role}`,
+      tagline ? `Tagline: ${tagline}` : '',
+      '',
+      story.length ? `**Story (ringkas):**\n${story.map((s) => `- ${s}`).join('\n')}` : '',
+      '',
+      `**Tech Stack (from content.ts):**`,
+      techModeling.length ? `- Modeling & Architecture: ${techModeling.join(', ')}` : '',
+      techData.length ? `- Data & Development: ${techData.join(', ')}` : '',
+      techTools.length ? `- Management & Tools: ${techTools.join(', ')}` : '',
+      '',
+      projectTitles.length ? `**Project Titles:**\n${projectTitles.map((t) => `- ${t}`).join('\n')}` : '',
+    ].filter(Boolean).join('\n');
+
+    return { mode, factsBlock, allowedTech };
+  }
+
+  if (mode === 'all-projects') {
+    const titles = items.map((p) => p.title).filter(Boolean);
+    const factsBlock = [
+      `**SOURCE OF TRUTH (content.ts)**`,
+      `Name: ${name}`,
+      `Primary Role: ${role}`,
+      '',
+      `**SEMUA PROYEK (judul persis dari content.ts):**`,
+      titles.length ? titles.map((t) => `- ${t}`).join('\n') : '(tidak ada data proyek)',
+    ].filter(Boolean).join('\n');
+    return { mode, factsBlock, allowedTech };
+  }
+
+  if (mode === 'project') {
+    const p = pickProjectByTitleHint(content, userMessage);
+    const tech = uniq(Array.isArray(p?.technologies) ? p!.technologies : []);
+    const factsBlock = [
+      `**SOURCE OF TRUTH (content.ts)**`,
+      `Project: ${p?.title ?? '(unknown)'}`,
+      p?.role ? `Role: ${p.role}` : '',
+      p?.description ? `Ringkas: ${p.description}` : '',
+      p?.challenge ? `Challenge: ${p.challenge}` : '',
+      p?.solution ? `Solution: ${p.solution}` : '',
+      tech.length ? `Tech (from content.ts): ${tech.join(', ')}` : '',
+      Array.isArray(p?.results) && p!.results.length ? `Results: ${p!.results.join(' | ')}` : '',
+    ].filter(Boolean).join('\n');
+    return { mode, factsBlock, allowedTech };
+  }
+
+  if (mode === 'education') {
+    const ed = Array.isArray(content.about?.education) ? content.about!.education : [];
+    const factsBlock = [
+      `**SOURCE OF TRUTH (content.ts)**`,
+      `Name: ${name}`,
+      '',
+      `**Education:**`,
+      ed.length ? ed.map((e) => `- ${e.degree} — ${e.school} (${e.year})`).join('\n') : '(not provided)',
+    ].filter(Boolean).join('\n');
+    return { mode, factsBlock, allowedTech };
+  }
+
+  if (mode === 'soft-skills') {
+    const ss = Array.isArray(content.about?.softSkills) ? content.about!.softSkills : [];
+    const factsBlock = [
+      `**SOURCE OF TRUTH (content.ts)**`,
+      `Name: ${name}`,
+      '',
+      `**Soft Skills:**`,
+      ss.length ? ss.map((s) => `- ${s.title}${s.desc ? `: ${s.desc}` : ''}`).join('\n') : '(not provided)',
+    ].filter(Boolean).join('\n');
+    return { mode, factsBlock, allowedTech };
+  }
+
+  if (mode === 'timeline') {
+    const t = content.timeline;
+    const steps = Array.isArray(t?.steps) ? t!.steps : [];
+    const factsBlock = [
+      `**SOURCE OF TRUTH (content.ts)**`,
+      `Name: ${name}`,
+      '',
+      t?.title ? `**Timeline / Process (${t.title}):**` : '**Timeline / Process:**',
+      steps.length ? steps.map((s) => `- ${s.title}: ${s.description}`).join('\n') : '(not provided)',
+    ].filter(Boolean).join('\n');
+    return { mode, factsBlock, allowedTech };
+  }
+
+  // contact
+  const footer = content.footer;
+  const socials = Array.isArray(footer?.socials) ? footer!.socials : [];
+  const cv = content.cv;
+  const factsBlock = [
+    `**SOURCE OF TRUTH (content.ts)**`,
+    `Name: ${name}`,
+    '',
+    `**Contact / Links:**`,
+    socials.length ? socials.map((s) => `- ${s.label}: ${s.href}`).join('\n') : '',
+    cv?.url ? `- CV: ${cv.url}` : '',
+  ].filter(Boolean).join('\n');
+
+  return { mode: 'contact', factsBlock, allowedTech };
 }
