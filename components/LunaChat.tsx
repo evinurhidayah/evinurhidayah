@@ -21,7 +21,8 @@ import {
   hasToolCalls,       // Check if AI wants to use tools
   extractToolCalls,   // Extract tool call details from AI response
   extractToolCallsFromAssistantMessage,
-  shouldDisableToolsForUserMessage
+  shouldDisableToolsForUserMessage,
+  tryParseXmlStyleToolCall
 } from '../utils/aiTools';
 import { buildOptimizedContext } from '../utils/aiOptimizer';
 import { validateOptimizedContext } from '../utils/portfolioContextValidator';
@@ -260,10 +261,122 @@ IMPORTANT TOOL FORMAT:
       return res;
     };
 
+    const readErrorJsonSafe = async (res: Response) => {
+      try {
+        return await res.json();
+      } catch {
+        return null;
+      }
+    };
+
+    const tryRecoverFromToolUseFailed = async (errorPayload: any) => {
+      const failedGen: string | undefined = errorPayload?.error?.failed_generation;
+      if (!failedGen || typeof failedGen !== 'string') return null;
+
+      const parsed = tryParseXmlStyleToolCall(failedGen);
+      if (!parsed || !parsed.name) return null;
+
+      // Execute the requested tool locally (no provider tool calling).
+      telemetryRef.current.bump('toolcalls_xml_recovered');
+      telemetryRef.current.bump('tool_exec_ok', 0); // ensure key exists
+
+      const query = parsed.arguments?.query;
+      if (typeof query === 'string' && query.trim()) {
+        setIsSearching(true);
+        setSearchQuery(query);
+        updateSearchStatus(messageIndex, query, 'searching', 0);
+        await new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY.SEARCHING));
+      }
+
+      let toolResult: any;
+      try {
+        toolResult = await executeTool(parsed.name, parsed.arguments);
+        telemetryRef.current.bump('tool_exec_ok');
+      } catch (e) {
+        telemetryRef.current.bump('tool_exec_error');
+        throw e;
+      }
+
+      // Update UI states for search
+      if (toolResult?.success && Array.isArray(toolResult?.results)) {
+        searchResults = toolResult.results;
+        if (typeof query === 'string' && query.trim()) {
+          updateSearchStatus(messageIndex, query, 'processing', searchResults.length);
+          await new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY.PROCESSING));
+          updateSearchStatus(messageIndex, query, 'completed', searchResults.length, searchResults);
+          await new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY.COMPLETED));
+        }
+      }
+
+      setIsSearching(false);
+      setSearchQuery('');
+
+      // Follow-up: ask Groq to answer using the tool results, but forbid tools.
+      const updatedContext = buildOptimizedContext(content, searchResults);
+      const updatedSystemPrompt = updatedContext.systemPrompt + '\n\n' + updatedContext.userContext;
+
+      const followUp = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: MODEL_NAME,
+          messages: [
+            { role: 'system', content: updatedSystemPrompt },
+            ...conversationMessages,
+            { role: 'user', content: userMessage },
+            {
+              role: 'assistant',
+              content: '',
+            },
+            {
+              role: 'tool',
+              tool_call_id: 'recovered_toolcall',
+              content: JSON.stringify(toolResult)
+            }
+          ],
+          // critical: do NOT allow additional tools here
+          tool_choice: 'none',
+          temperature: 0.8,
+          max_tokens: 800,
+          top_p: 0.95
+        })
+      });
+
+      if (!followUp.ok) {
+        telemetryRef.current.bump('groq_call_error');
+        return null;
+      }
+
+      telemetryRef.current.bump('groq_call_ok');
+      const followData = await followUp.json();
+      const reply = followData?.choices?.[0]?.message?.content;
+      return typeof reply === 'string' && reply.trim() ? reply : null;
+    };
+
     const response = await callGroq(systemPrompt);
 
     if (!response.ok) {
       telemetryRef.current.bump('groq_call_error');
+      const errorPayload = await readErrorJsonSafe(response);
+
+      // Hard fix (not avoidance): handle Groq tool_use_failed by recovering the malformed tool call.
+      if (response.status === 400 && errorPayload?.error?.code === 'tool_use_failed') {
+        const recoveredReply = await tryRecoverFromToolUseFailed(errorPayload);
+        if (recoveredReply) {
+          setMessages(prev => 
+            prev.map((msg, idx) => 
+              idx === messageIndex 
+                ? { ...msg, content: recoveredReply, isStreaming: true, sources: searchResults, showSources: false }
+                : msg
+            )
+          );
+          return;
+        }
+      }
+
       if (response.status === 429) {
         throw new Error('Rate limit tercapai. Silakan coba lagi dalam beberapa menit. 🕐');
       }

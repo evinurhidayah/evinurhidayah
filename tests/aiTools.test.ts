@@ -17,12 +17,25 @@ describe('aiTools guardrails', () => {
     expect(shouldDisableToolsForUserMessage('Evi dan Kubernetes trend 2024 gimana?')).toBe(false);
   });
 
+  it('still disables tools when Evi is mentioned without trend intent', () => {
+    expect(shouldDisableToolsForUserMessage('Evi pakai Kubernetes?')).toBe(true);
+    expect(shouldDisableToolsForUserMessage('Evi pakai Docker?')).toBe(true);
+  });
+
   it('parses XML-style tool calls', () => {
     const xml = '<function=search_web{"query":"GraphQL vs REST","purpose":"compare"}</function>';
     const parsed = tryParseXmlStyleToolCall(xml);
     expect(parsed).not.toBeNull();
     expect(parsed?.name).toBe('search_web');
     expect(parsed?.arguments.query).toBe('GraphQL vs REST');
+  });
+
+  it('parses failed_generation payload from tool_use_failed', () => {
+    const failedGeneration = '<function=search_web {"purpose": "Compare TING with other applications", "query": "TING vs other SaaS applications"} </function>';
+    const parsed = tryParseXmlStyleToolCall(failedGeneration);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.name).toBe('search_web');
+    expect(parsed?.arguments.query).toContain('TING');
   });
 
   it('extracts tool call from assistant message when in XML content', () => {

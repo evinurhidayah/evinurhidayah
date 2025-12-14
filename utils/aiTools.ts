@@ -57,9 +57,11 @@ export function shouldDisableToolsForUserMessage(userMessage: string): boolean {
   if (eviIdentityPatterns.some((r) => r.test(m))) return true;
 
   // Also block tool calling when user explicitly asks about "Evi" without any
-  // tech/trend/time-sensitive intent.
-  const hasTechOrTrend = /(bigquery|kubernetes|docker|microservices|react|node\.js|nodejs|python|trend|terkini|terbaru|2024|2025|latest|current)/i.test(m);
-  if (m.includes('evi') && !hasTechOrTrend) return true;
+  // trend/time-sensitive intent.
+  // NOTE: Do NOT treat random tech words as a signal to enable tools, because
+  // it can lead to the assistant accidentally asserting that Evi used them.
+  const hasTrendIntent = /(trend|terkini|terbaru|2024|2025|latest|current)/i.test(m);
+  if (m.includes('evi') && !hasTrendIntent) return true;
 
   return false;
 }
