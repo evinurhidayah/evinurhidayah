@@ -27,6 +27,7 @@ import {
 import { buildOptimizedContext } from '../utils/aiOptimizer';
 import { validateOptimizedContext } from '../utils/portfolioContextValidator';
 import { buildDeterministicPortfolioSummary, buildRoutedPortfolioContext } from '../utils/portfolioSummary';
+import { summarizeConversationIfNeeded, ConversationMemoryState } from '../utils/conversationMemory';
 import { 
   createReasoningEngine,
   ReasoningEngine,
@@ -118,6 +119,9 @@ interface Message {
 
 const LunaChat: React.FC = () => {
   const telemetryRef = useRef(createTelemetry());
+
+  // Rolling memory: compress older chat history into a compact summary for token savings.
+  const memoryRef = useRef<ConversationMemoryState>({ summary: '', summarizedCount: 0 });
 
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -263,6 +267,33 @@ ${portfolioFacts.factsBlock}`
 
     // Groq-decides: no pre-search. If the model needs web context it should request it.
 
+    const buildGroqMessages = (promptToUse: string) => {
+      // Summarize older conversation to reduce tokens while keeping last messages verbatim.
+      const rawHistory = (conversationMessages || []).map((m: any) => ({
+        role: m.role,
+        content: typeof m.content === 'string' ? m.content : '',
+      })).filter((m: any) => (m.role === 'user' || m.role === 'assistant') && m.content);
+
+      const { updatedState, keptMessages, summaryMessage } = summarizeConversationIfNeeded(
+        rawHistory,
+        memoryRef.current,
+        {
+          maxUserTurnsBeforeSummarize: 4,
+          keepLastMessages: 6,
+          maxApproxPromptTokens: 1800,
+        }
+      );
+
+      memoryRef.current = updatedState;
+
+      return [
+        { role: 'system', content: promptToUse },
+        ...(summaryMessage ? [{ role: 'assistant', content: summaryMessage.content }] : []),
+        ...keptMessages,
+        { role: 'user', content: userMessage },
+      ];
+    };
+
     const callGroq = async (promptToUse: string) => {
       const res = await fetch(GROQ_API_URL, {
         method: 'POST',
@@ -272,11 +303,7 @@ ${portfolioFacts.factsBlock}`
         },
         body: JSON.stringify({
           model: MODEL_NAME,
-          messages: [
-            { role: 'system', content: promptToUse },
-            ...conversationMessages,
-            { role: 'user', content: userMessage }
-          ],
+          messages: buildGroqMessages(promptToUse),
           // Always send tools for schema stability; choose whether the model may use them.
           tools: getTools(),
           tool_choice: disableTools ? 'none' : 'auto',
