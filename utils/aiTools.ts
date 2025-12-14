@@ -20,11 +20,28 @@ export function tryParseXmlStyleToolCall(content: string):
   if (!content) return null;
 
   const trimmed = content.trim();
-  if (!trimmed.startsWith('<function=')) return null;
+  // Accept both raw and escaped forms that might appear in error payloads.
+  // Example: "<function=search_web{...}></function>" or "\u003cfunction=...\u003e\u003c/function\u003e".
+  const normalized = trimmed
+    // Some providers serialize escapes as a literal backslash-u sequence.
+    // Normalize those first.
+    .replace(/\\u003c/g, '<')
+    .replace(/\\u003e/g, '>')
+    .replace(/\u003c/g, '<')
+    .replace(/\u003e/g, '>')
+    .trim();
 
-  // Capture name and JSON payload inside <function=NAME{...}</function>
-  // We keep it tolerant to whitespace/newlines.
-  const match = trimmed.match(/^<function=([a-zA-Z0-9_\-]+)\s*(\{[\s\S]*\})\s*<\/function>\s*$/);
+  // Find an XML-style tool call block even if the provider wraps it in other text.
+  const blockMatch = normalized.match(/<function=[\s\S]*?<\/function>/);
+  const candidate = blockMatch ? blockMatch[0].trim() : normalized;
+
+  if (!candidate.startsWith('<function=')) return null;
+
+  // Capture name and JSON payload.
+  // Groq sometimes omits the closing '>' after the JSON payload, yielding:
+  //   <function=search_web{...}</function>
+  // so we allow an optional '>' before </function>.
+  const match = candidate.match(/^<function=([a-zA-Z0-9_\-]+)\s*(\{[\s\S]*\})\s*>?\s*<\/function>\s*$/);
   if (!match) return null;
 
   const name = match[1];
@@ -33,7 +50,15 @@ export function tryParseXmlStyleToolCall(content: string):
     const args = JSON.parse(json);
     return { name, arguments: args };
   } catch {
-    return null;
+    // Last resort: try to extract a JSON object within the tag.
+  const looseJsonMatch = candidate.match(/\{[\s\S]*\}/);
+    if (!looseJsonMatch) return null;
+    try {
+      const args = JSON.parse(looseJsonMatch[0]);
+      return { name, arguments: args };
+    } catch {
+      return null;
+    }
   }
 }
 

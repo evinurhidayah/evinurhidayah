@@ -38,6 +38,33 @@ describe('aiTools guardrails', () => {
     expect(parsed?.arguments.query).toContain('TING');
   });
 
+  it('parses escaped XML-style tool calls (\\u003c/\\u003e)', () => {
+    const escaped =
+      "\\u003cfunction=search_web{\"purpose\": \"Mengetahui project terbesar Evi Nur Hidayah\", \"query\": \"Evi Nur Hidayah project terbesar\"}\\u003e\\u003c/function\\u003e";
+    const parsed = tryParseXmlStyleToolCall(escaped);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.name).toBe('search_web');
+    expect(String(parsed?.arguments.query)).toContain('project terbesar');
+  });
+
+  it('parses escaped XML without > before closing tag', () => {
+    const escaped =
+      "\\u003cfunction=search_web{\"purpose\":\"cek\",\"query\":\"test query\"}\\u003c/function\\u003e";
+    const parsed = tryParseXmlStyleToolCall(escaped);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.name).toBe('search_web');
+    expect(parsed?.arguments.purpose).toBe('cek');
+  });
+
+  it('parses XML tool call even with surrounding noise', () => {
+    const noisy =
+      "some prefix... <function=search_web{\"purpose\":\"cek\",\"query\":\"noisy\"}</function> ...suffix";
+    const parsed = tryParseXmlStyleToolCall(noisy);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.name).toBe('search_web');
+    expect(parsed?.arguments.query).toBe('noisy');
+  });
+
   it('extracts tool call from assistant message when in XML content', () => {
     const message = {
       role: 'assistant',

@@ -344,7 +344,11 @@ ${portfolioFacts.factsBlock}`
 
       let toolResult: any;
       try {
-        toolResult = await executeTool(parsed.name, parsed.arguments);
+        // Safety: avoid hanging forever if a tool call stalls.
+        toolResult = await Promise.race([
+          executeTool(parsed.name, parsed.arguments),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Tool execution timeout')), 15000)),
+        ]);
         telemetryRef.current.bump('tool_exec_ok');
       } catch (e) {
         telemetryRef.current.bump('tool_exec_error');
@@ -365,7 +369,9 @@ ${portfolioFacts.factsBlock}`
       setIsSearching(false);
       setSearchQuery('');
 
-      // Follow-up: ask Groq to answer using the tool results, but forbid tools.
+  // Follow-up: ask Groq to answer using the tool results, but forbid tools.
+  // IMPORTANT (Groq reliability): do NOT send role:'tool' here, because the original
+  // request failed tool validation. Provide results as plain text context instead.
       const updatedContext = buildOptimizedContext(content, searchResults);
       const updatedSystemPrompt = updatedContext.systemPrompt + '\n\n' + updatedContext.userContext;
 
@@ -382,14 +388,9 @@ ${portfolioFacts.factsBlock}`
             ...conversationMessages,
             { role: 'user', content: userMessage },
             {
-              role: 'assistant',
-              content: '',
+              role: 'user',
+              content: `HASIL PENCARIAN WEB (${parsed.name}):\n${formatSearchResults(searchResults)}\n\nGunakan hasil di atas untuk menjawab pertanyaan terakhir. Jangan melakukan tool call lagi.`,
             },
-            {
-              role: 'tool',
-              tool_call_id: 'recovered_toolcall',
-              content: JSON.stringify(toolResult)
-            }
           ],
           // critical: do NOT allow additional tools here
           tool_choice: 'none',
