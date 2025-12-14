@@ -117,8 +117,14 @@ interface Message {
   reasoningIterations?: number;     // How many thinking loops
 }
 
-const LunaChat: React.FC = () => {
+type LunaChatProps = {
+  onOpenChange?: (isOpen: boolean) => void;
+};
+
+const LunaChat: React.FC<LunaChatProps> = ({ onOpenChange }) => {
   const telemetryRef = useRef(createTelemetry());
+
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Rolling memory: compress older chat history into a compact summary for token savings.
   const memoryRef = useRef<ConversationMemoryState>({ summary: '', summarizedCount: 0 });
@@ -138,6 +144,15 @@ const LunaChat: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [streamingMessageIndex, setStreamingMessageIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Notify parent when the chat opens/closes so global overlays (e.g., MagicCursor)
+  // can adapt without breaking the typing caret UX.
+  useEffect(() => {
+    onOpenChange?.(isOpen);
+  }, [isOpen, onOpenChange]);
+
+  const isAssistantStreaming = Boolean(streamingMessageIndex !== null);
+  const isInputDisabled = isLoading || isAssistantStreaming;
 
   // Smooth auto-scroll function
   const scrollToBottom = (smooth = true) => {
@@ -176,6 +191,17 @@ const LunaChat: React.FC = () => {
   useEffect(() => {
     scrollToBottom(false);
   }, [messages, isOpen, isMaximized]);
+
+  // Auto-focus input when opening the chat / toggling maximize,
+  // so user can type immediately without clicking.
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = window.setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [isOpen, isMaximized]);
 
   // Memoized scroll handler to prevent re-renders during typing
   const handleTypingScroll = useCallback(() => {
@@ -756,6 +782,10 @@ ${portfolioFacts.factsBlock}`
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isInputDisabled) {
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -774,7 +804,7 @@ ${portfolioFacts.factsBlock}`
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-space-900 border border-nebula-pink/50 shadow-[0_0_20px_rgba(255,0,204,0.3)] flex items-center justify-center group cursor-pointer"
+        className="fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full bg-space-900 border border-nebula-pink/50 shadow-[0_0_20px_rgba(255,0,204,0.3)] flex items-center justify-center group cursor-pointer"
             >
                 {/* Pulsing Rings - Pink/Purple Theme */}
                 <div className="absolute inset-0 rounded-full border border-nebula-pink/30 animate-ping opacity-20" />
@@ -797,7 +827,7 @@ ${portfolioFacts.factsBlock}`
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className={cn(
-                "fixed bottom-6 right-6 z-50 bg-space-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ease-in-out origin-bottom-right",
+    "fixed bottom-6 right-6 z-[9999] isolate bg-space-900/95 backdrop-blur-xl border border-nebula-pink/20 rounded-2xl shadow-[0_0_30px_rgba(255,0,204,0.22)] flex flex-col overflow-hidden transition-all duration-300 ease-in-out origin-bottom-right",
                 // Responsive Size Logic
                 isMaximized 
                     ? "w-[calc(100vw-3rem)] h-[calc(100vh-6rem)] md:w-[600px] md:h-[700px]" 
@@ -930,18 +960,20 @@ ${portfolioFacts.factsBlock}`
 
             {/* Input Area */}
             <div className="p-4 bg-black/20 border-t border-white/10 shrink-0">
-                <div className="relative flex items-center">
+        <div className="relative flex items-center isolate">
                     <input 
+            ref={inputRef}
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Tanya tentang Evi..."
+            disabled={isInputDisabled}
                         className="w-full bg-space-950/50 border border-white/10 rounded-xl pl-4 pr-12 py-3 text-sm text-white focus:outline-none focus:border-nebula-pink/50 focus:ring-1 focus:ring-nebula-pink/20 placeholder:text-white/20 transition-all font-mono"
                     />
                     <button 
                         onClick={handleSendMessage}
-                        disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isInputDisabled}
                         className="absolute right-2 p-1.5 rounded-lg bg-nebula-pink/20 text-nebula-pink hover:bg-nebula-pink hover:text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                         <Send className="w-4 h-4" />

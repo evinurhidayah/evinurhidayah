@@ -40,7 +40,7 @@ const MagicCursor: React.FC = () => {
   const starPath = "M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z";
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden hidden md:block">
+    <div className="fixed inset-0 pointer-events-none z-[10000] overflow-hidden hidden md:block">
       {/* Layer 1: Sharp Cursor */}
       <motion.div
         className="absolute z-20 text-white will-change-transform"
