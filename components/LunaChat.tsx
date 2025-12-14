@@ -26,6 +26,7 @@ import {
 } from '../utils/aiTools';
 import { buildOptimizedContext } from '../utils/aiOptimizer';
 import { validateOptimizedContext } from '../utils/portfolioContextValidator';
+import { buildDeterministicPortfolioSummary } from '../utils/portfolioSummary';
 import { 
   createReasoningEngine,
   ReasoningEngine,
@@ -234,6 +235,27 @@ IMPORTANT TOOL FORMAT:
 
     if (disableTools) telemetryRef.current.bump('tools_disabled_identity');
 
+    // For identity/portfolio questions, provide deterministic facts built from content.ts
+    // to prevent hallucinated tech stacks.
+    const portfolioFacts = disableTools
+      ? buildDeterministicPortfolioSummary(content)
+      : null;
+    const groundedSystemPrompt = portfolioFacts
+  ? `${systemPrompt}
+
+MODE: PORTOFOLIO / IDENTITAS (Bahasa Indonesia)
+
+ATURAN KEAKURATAN (WAJIB):
+- Kamu HANYA boleh memakai fakta yang tertulis di blok "SOURCE OF TRUTH (content.ts)" di bawah.
+- DILARANG menambahkan teknologi, tools, role, company, periode kerja, atau detail project yang tidak tertulis.
+- Jika user menanyakan teknologi yang tidak tercantum, jawab persis: "Tidak tercantum di portfolio content.ts".
+
+ATURAN BAHASA:
+- Jawab dalam Bahasa Indonesia (kecuali user minta bahasa lain).
+
+${portfolioFacts.factsBlock}`
+  : systemPrompt;
+
     // Groq-decides: no pre-search. If the model needs web context it should request it.
 
     const callGroq = async (promptToUse: string) => {
@@ -356,7 +378,7 @@ IMPORTANT TOOL FORMAT:
       return typeof reply === 'string' && reply.trim() ? reply : null;
     };
 
-    const response = await callGroq(systemPrompt);
+  const response = await callGroq(groundedSystemPrompt);
 
     if (!response.ok) {
       telemetryRef.current.bump('groq_call_error');
@@ -385,7 +407,7 @@ IMPORTANT TOOL FORMAT:
 
     telemetryRef.current.bump('groq_call_ok');
 
-    const data = await response.json();
+  const data = await response.json();
 
     // Extract tool calls (normal tool_calls OR XML-style fallback)
     let assistantMessage = data?.choices?.[0]?.message;
@@ -398,7 +420,7 @@ IMPORTANT TOOL FORMAT:
     // If the model returned an XML-style tool call, do one repair retry with stricter rules.
     if (!disableTools && recoveredToolCalls.length > 0 && !assistantMessage?.tool_calls) {
       telemetryRef.current.bump('toolcalls_repair_retry');
-      const repairedPrompt = getStrictToolRepairSystemPrompt(systemPrompt);
+      const repairedPrompt = getStrictToolRepairSystemPrompt(groundedSystemPrompt);
       const retry = await callGroq(repairedPrompt);
       if (retry.ok) {
         telemetryRef.current.bump('groq_call_ok');
