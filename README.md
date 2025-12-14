@@ -6,11 +6,14 @@ Portfolio website profesional untuk Evi Nur Hidayah dengan AI Chat Assistant (Lu
 
 - 🎨 **Modern UI/UX** - Desain futuristik dengan nebula theme
 - 🤖 **Luna AI Chat** - AI assistant dengan Groq Llama 3.3 70B
+- 🔍 **Web Search Integration** - Luna bisa search web dengan Brave Search API
 - ⌨️ **Live Typing Effect** - Real-time typing animation untuk chat
 - 📝 **Markdown Support** - Render markdown dengan syntax highlighting
+- 🔗 **Source Citations** - Tampilkan sumber informasi dari web search
 - 🚀 **Fast Performance** - Code splitting & lazy loading
 - 📱 **Responsive Design** - Mobile-friendly interface
 - ⭐ **Interactive Elements** - Smooth animations dengan Framer Motion
+- 🧠 **Smart Context Detection** - Auto-detect kapan perlu web search
 
 ## 🛠️ Tech Stack
 
@@ -18,6 +21,7 @@ Portfolio website profesional untuk Evi Nur Hidayah dengan AI Chat Assistant (Lu
 - **Styling**: Tailwind CSS
 - **Animations**: Framer Motion
 - **AI**: Groq API (Llama 3.3 70B)
+- **Web Search**: Brave Search API
 - **Markdown**: React-Markdown, Remark GFM
 - **Icons**: Lucide React
 
@@ -31,21 +35,40 @@ Portfolio website profesional untuk Evi Nur Hidayah dengan AI Chat Assistant (Lu
    npm install
    ```
 
-2. **Setup API Key:**
+2. **Setup API Keys:**
 
    Buat file `.env.local` di root directory:
 
    ```bash
    GROQ_API_KEY=your_groq_api_key_here
+   BRAVE_SEARCH_API_KEY=your_brave_api_key_here
    ```
 
-   Dapatkan API key gratis dari: https://console.groq.com/keys
+   - **Groq API** (Required): https://console.groq.com/keys
+   - **Brave Search API** (Required): https://api-dashboard.search.brave.com/register
 
-3. **Run development server:**
+   Keduanya memiliki free tier yang cukup untuk personal use.
+
+3. **Run development servers:**
+
+   Web search memerlukan proxy server untuk menghindari CORS:
 
    ```bash
+   # Run proxy + vite dev server (recommended)
+   npm run dev:all
+   ```
+
+   Atau jalankan terpisah di 2 terminal:
+
+   ```bash
+   # Terminal 1: Proxy server
+   npm run dev:proxy
+
+   # Terminal 2: Vite dev server
    npm run dev
    ```
+
+   📝 **Note:** Proxy server (port 3001) diperlukan untuk web search di development.
 
 4. **Build for production:**
    ```bash
@@ -111,8 +134,15 @@ Edit prompt di `components/LunaChat.tsx`:
 
 1. Push ke GitHub repository
 2. Import di [Vercel](https://vercel.com)
-3. Set environment variable: `GROQ_API_KEY`
+3. Set environment variables (Project → Settings → Environment Variables):
+   - `GROQ_API_KEY` (untuk Luna AI)
+   - `BRAVE_SEARCH_API_KEY` (untuk endpoint serverless `/api/search`)
 4. Deploy! 🚀
+
+📝 Catatan penting:
+
+- Di production (Vercel), web search **otomatis** jalan lewat serverless function `api/search.ts`.
+- File `.env.local` hanya untuk **development lokal** (dipakai oleh `dev-proxy.js`). Jangan commit API key ke repo.
 
 ### Build Output
 

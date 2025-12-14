@@ -1,34 +1,135 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Bot, Sparkles, Terminal, Maximize2, Minimize2 } from 'lucide-react';
 import { content } from '../data/content';
 import { cn } from '../utils/cn';
 import { TypewriterText } from './TypewriterText';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { SearchIndicator } from './SearchIndicator';
+import { SourceCitations } from './SourceCitations';
+import { SearchStatus } from './SearchStatus';
+import { ReasoningIndicator } from './ReasoningIndicator';
+import { 
+  formatSearchResults,
+  SearchResult,
+  searchWeb
+} from '../utils/webSearch';
+import { 
+  getTools,           // Tool definitions for AI function calling
+  executeTool,        // Execute search_web when AI requests it
+  hasToolCalls,       // Check if AI wants to use tools
+  extractToolCalls,   // Extract tool call details from AI response
+  extractToolCallsFromAssistantMessage,
+  shouldDisableToolsForUserMessage
+} from '../utils/aiTools';
+import { buildOptimizedContext } from '../utils/aiOptimizer';
+import { validateOptimizedContext } from '../utils/portfolioContextValidator';
+import { 
+  createReasoningEngine,
+  ReasoningEngine,
+  ReasoningStep 
+} from '../utils/reasoningEngine';
+
+// ============================================
+// DEV TELEMETRY (guardrails observability)
+// ============================================
+type LunaTelemetryEvent =
+  | 'groq_call_ok'
+  | 'groq_call_error'
+  | 'toolcalls_native'
+  | 'toolcalls_xml_recovered'
+  | 'toolcalls_repair_retry'
+  | 'tool_exec_ok'
+  | 'tool_exec_error'
+  | 'tools_disabled_identity';
+
+type LunaTelemetry = Record<LunaTelemetryEvent, number>;
+
+const isDev = () => (
+  typeof import.meta !== 'undefined' &&
+  (import.meta as any).env &&
+  Boolean((import.meta as any).env.DEV)
+);
+
+const createTelemetry = () => {
+  const counters: LunaTelemetry = {
+    groq_call_ok: 0,
+    groq_call_error: 0,
+    toolcalls_native: 0,
+    toolcalls_xml_recovered: 0,
+    toolcalls_repair_retry: 0,
+    tool_exec_ok: 0,
+    tool_exec_error: 0,
+    tools_disabled_identity: 0,
+  };
+
+  const bump = (event: LunaTelemetryEvent, by = 1) => {
+    counters[event] += by;
+
+    if (!isDev()) return;
+
+    // Expose for quick inspection in devtools.
+    (window as any).__EVI_DEBUG = (window as any).__EVI_DEBUG || {};
+    (window as any).__EVI_DEBUG.lunaTelemetry = counters;
+  };
+
+  const snapshot = () => ({ ...counters });
+
+  return { bump, snapshot };
+};
+
+// ============================================
+// CONSTANTS
+// ============================================
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const MODEL_NAME = 'llama-3.3-70b-versatile';
+const SEARCH_DELAY = {
+  SEARCHING: 500,   // Delay before showing processing status
+  PROCESSING: 800,  // Delay before showing completed status
+  COMPLETED: 600    // Delay before AI starts responding
+};
+const MAX_REASONING_ITERATIONS = 3; // Max thinking loops for multi-turn reasoning
+const ENABLE_MULTI_TURN = false;    // Feature flag: false = use stable single-turn
 
 // Bypass TS type mismatch for motion components
 const MotionDiv = motion.div as any;
 const MotionButton = motion.button as any;
 
+// ============================================
+// TYPES
+// ============================================
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   isStreaming?: boolean;
+  sources?: SearchResult[];
+  showSources?: boolean; // New flag to control when sources are visible
+  searchMetadata?: {
+    query: string;
+    status: 'searching' | 'processing' | 'completed';
+    resultCount: number;
+  };
+  reasoningSteps?: ReasoningStep[]; // Multi-turn reasoning steps
+  reasoningIterations?: number;     // How many thinking loops
 }
 
 const LunaChat: React.FC = () => {
+  const telemetryRef = useRef(createTelemetry());
+
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-  { 
+    { 
       role: 'assistant', 
-      content: "Halo! Saya Luna 👋 AI Assistant yang bisa menjawab semua pertanyaan Anda seputar Evi dan portfolionya. Bagaimana saya bisa membantu Anda mengenai portfolio Evi hari ini?",
+      content: "Halo! Saya Luna 👋 AI Assistant yang bisa menjawab semua pertanyaan Anda seputar Evi dan portfolionya. Saya juga bisa mencari informasi dari web jika diperlukan! Bagaimana saya bisa membantu Anda hari ini?",
       isStreaming: false
     }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [streamingMessageIndex, setStreamingMessageIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -42,14 +143,354 @@ const LunaChat: React.FC = () => {
     }
   };
 
+  // Helper: Update search status in UI
+  const updateSearchStatus = (
+    messageIndex: number, 
+    query: string, 
+    status: 'searching' | 'processing' | 'completed',
+    resultCount: number,
+    sources?: SearchResult[]
+  ) => {
+    setMessages(prev => 
+      prev.map((msg, idx) => 
+        idx === messageIndex 
+          ? { 
+              ...msg, 
+              content: '', 
+              isStreaming: true,
+              searchMetadata: { query, status, resultCount },
+              sources: sources || msg.sources
+            }
+          : msg
+      )
+    );
+  };
+
   // Auto-scroll to bottom of chat
   useEffect(() => {
     scrollToBottom(false);
   }, [messages, isOpen, isMaximized]);
 
-  // Auto-scroll saat typing (dipanggil dari TypewriterText)
-  const handleTypingScroll = () => {
+  // Memoized scroll handler to prevent re-renders during typing
+  const handleTypingScroll = useCallback(() => {
     scrollToBottom(true);
+  }, []);
+
+  // ============================================
+  // SINGLE-TURN REASONING (Stable, Groq-compatible)
+  // ============================================
+
+  type SearchMode = 'no-search' | 'local-search-first' | 'model-tools';
+
+  const detectSearchMode = (userMessage: string): SearchMode => {
+    if (shouldDisableToolsForUserMessage(userMessage)) return 'no-search';
+
+    // Groq-decides mode: let the model choose to use tools.
+    // We keep a fallback/retry path for the intermittent XML tool-call issue.
+    return 'model-tools';
+  };
+
+  const runLocalSearchWithUI = async (messageIndex: number, query: string) => {
+    setIsSearching(true);
+    setSearchQuery(query);
+
+    updateSearchStatus(messageIndex, query, 'searching', 0);
+    await new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY.SEARCHING));
+
+    const results = await searchWeb(query, 5);
+
+    updateSearchStatus(messageIndex, query, 'processing', results.length);
+    await new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY.PROCESSING));
+
+    updateSearchStatus(messageIndex, query, 'completed', results.length, results);
+    await new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY.COMPLETED));
+
+    setIsSearching(false);
+    setSearchQuery('');
+
+    return results;
+  };
+
+  const getStrictToolRepairSystemPrompt = (baseSystemPrompt: string) => {
+    return `${baseSystemPrompt}
+
+IMPORTANT TOOL FORMAT:
+- If you call a tool, DO NOT output XML like <function=...>.
+- You MUST use the API tool call mechanism (tool_calls) only.
+- If you cannot call tools safely, answer WITHOUT calling tools.`;
+  };
+
+  const handleSingleTurnReasoning = async (
+    userMessage: string,
+    conversationMessages: any[],
+    systemPrompt: string,
+    messageIndex: number
+  ) => {
+    let searchResults: SearchResult[] = [];
+
+    const searchMode = detectSearchMode(userMessage);
+    const disableTools = searchMode !== 'model-tools';
+
+    if (disableTools) telemetryRef.current.bump('tools_disabled_identity');
+
+    // Groq-decides: no pre-search. If the model needs web context it should request it.
+
+    const callGroq = async (promptToUse: string) => {
+      const res = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: MODEL_NAME,
+          messages: [
+            { role: 'system', content: promptToUse },
+            ...conversationMessages,
+            { role: 'user', content: userMessage }
+          ],
+          // Always send tools for schema stability; choose whether the model may use them.
+          tools: getTools(),
+          tool_choice: disableTools ? 'none' : 'auto',
+          temperature: 0.8,
+          max_tokens: 800,
+          top_p: 0.95
+        })
+      });
+      return res;
+    };
+
+    const response = await callGroq(systemPrompt);
+
+    if (!response.ok) {
+      telemetryRef.current.bump('groq_call_error');
+      if (response.status === 429) {
+        throw new Error('Rate limit tercapai. Silakan coba lagi dalam beberapa menit. 🕐');
+      }
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    telemetryRef.current.bump('groq_call_ok');
+
+    const data = await response.json();
+
+    // Extract tool calls (normal tool_calls OR XML-style fallback)
+    let assistantMessage = data?.choices?.[0]?.message;
+    let recoveredToolCalls = extractToolCallsFromAssistantMessage(assistantMessage);
+
+  const hadNativeToolCalls = Array.isArray(assistantMessage?.tool_calls) && assistantMessage.tool_calls.length > 0;
+  if (hadNativeToolCalls) telemetryRef.current.bump('toolcalls_native');
+  if (!hadNativeToolCalls && recoveredToolCalls.length > 0) telemetryRef.current.bump('toolcalls_xml_recovered');
+
+    // If the model returned an XML-style tool call, do one repair retry with stricter rules.
+    if (!disableTools && recoveredToolCalls.length > 0 && !assistantMessage?.tool_calls) {
+      telemetryRef.current.bump('toolcalls_repair_retry');
+      const repairedPrompt = getStrictToolRepairSystemPrompt(systemPrompt);
+      const retry = await callGroq(repairedPrompt);
+      if (retry.ok) {
+        telemetryRef.current.bump('groq_call_ok');
+        const retryData = await retry.json();
+        assistantMessage = retryData?.choices?.[0]?.message;
+        recoveredToolCalls = extractToolCallsFromAssistantMessage(assistantMessage);
+
+        const retryHadNativeToolCalls = Array.isArray(assistantMessage?.tool_calls) && assistantMessage.tool_calls.length > 0;
+        if (retryHadNativeToolCalls) telemetryRef.current.bump('toolcalls_native');
+        if (!retryHadNativeToolCalls && recoveredToolCalls.length > 0) telemetryRef.current.bump('toolcalls_xml_recovered');
+      }
+    }
+
+    // PHASE 2: Execute tool calls if needed (only when we allow model-tools)
+    if (searchMode === 'model-tools' && (!disableTools) && ((assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) || recoveredToolCalls.length > 0)) {
+      // Prefer actual tool_calls; fallback to recovered XML parsing.
+      const toolCalls = (assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0)
+        ? extractToolCalls({ choices: [{ message: assistantMessage }] })
+        : recoveredToolCalls;
+      
+      for (const toolCall of toolCalls) {
+        const { query, purpose } = toolCall.arguments;
+        
+        setIsSearching(true);
+        setSearchQuery(query);
+        
+        updateSearchStatus(messageIndex, query, 'searching', 0);
+        await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.SEARCHING));
+        
+        let toolResult: any;
+        try {
+          toolResult = await executeTool(toolCall.name, toolCall.arguments);
+          telemetryRef.current.bump('tool_exec_ok');
+        } catch (e) {
+          telemetryRef.current.bump('tool_exec_error');
+          throw e;
+        }
+        
+        if (toolResult.success && toolResult.results) {
+          searchResults = toolResult.results;
+          
+          updateSearchStatus(messageIndex, query, 'processing', searchResults.length);
+          await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.PROCESSING));
+          
+          updateSearchStatus(messageIndex, query, 'completed', searchResults.length, searchResults);
+          await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.COMPLETED));
+        }
+        
+        setIsSearching(false);
+        setSearchQuery('');
+      }
+
+      // PHASE 3: Final API call with search results
+      const updatedContext = buildOptimizedContext(content, searchResults);
+      const updatedSystemPrompt = updatedContext.systemPrompt + '\n\n' + updatedContext.userContext;
+
+      const finalResponse = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: MODEL_NAME,
+          messages: [
+            { role: 'system', content: updatedSystemPrompt },
+            ...conversationMessages,
+            { role: 'user', content: userMessage },
+            {
+              role: 'assistant',
+              // If we recovered tool calls from XML, content may contain the XML snippet.
+              // Send an empty assistant content here so the model focuses on tool outputs.
+              content: (recoveredToolCalls.length > 0 && !(assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0)) ? '' : (assistantMessage?.content || ''),
+              ...(recoveredToolCalls.length > 0 && !(assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) ? { tool_calls: toolCalls.map(tc => ({
+                id: tc.id,
+                type: 'function',
+                function: {
+                  name: tc.name,
+                  arguments: JSON.stringify(tc.arguments)
+                }
+              })) } : { tool_calls: assistantMessage?.tool_calls })
+            },
+            ...toolCalls.map(tc => ({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: JSON.stringify({
+                success: true,
+                results: searchResults,
+                count: searchResults.length
+              })
+            }))
+          ],
+          temperature: 0.8,
+          max_tokens: 800,
+          top_p: 0.95
+        })
+      });
+
+      if (!finalResponse.ok) {
+        throw new Error(`API error: ${finalResponse.status}`);
+      }
+
+      const finalData = await finalResponse.json();
+      const reply = finalData.choices?.[0]?.message?.content || "Koneksi terputus. Silakan coba lagi.";
+
+      setMessages(prev => 
+        prev.map((msg, idx) => 
+          idx === messageIndex 
+            ? { ...msg, content: reply, isStreaming: true, sources: searchResults, showSources: false }
+            : msg
+        )
+      );
+    } else {
+      // No search needed
+      const reply = data.choices?.[0]?.message?.content || "Koneksi terputus. Silakan coba lagi.";
+      
+      setMessages(prev => 
+        prev.map((msg, idx) => 
+          idx === messageIndex 
+            ? { ...msg, content: reply, isStreaming: true, showSources: false }
+            : msg
+        )
+      );
+    }
+  };
+
+  // ============================================
+  // MULTI-TURN REASONING (Experimental)
+  // ============================================
+  const handleMultiTurnReasoning = async (
+    userMessage: string,
+    conversationMessages: any[],
+    systemPrompt: string,
+    messageIndex: number
+  ) => {
+    const reasoningEngine = createReasoningEngine(
+      process.env.GROQ_API_KEY || '',
+      systemPrompt,
+      {
+        maxIterations: MAX_REASONING_ITERATIONS,
+        model: MODEL_NAME,
+        apiUrl: GROQ_API_URL
+      }
+    );
+
+    console.log('🧠 Starting multi-turn reasoning...');
+
+    const reasoningResult = await reasoningEngine.reason(
+      userMessage,
+      conversationMessages
+    );
+
+    console.log('✅ Reasoning complete:', {
+      iterations: reasoningResult.totalIterations,
+      confidence: reasoningResult.confidence,
+      searchesPerformed: reasoningResult.searchResults.length
+    });
+
+    // Show thinking process
+    if (reasoningResult.steps.length > 1) {
+      for (const step of reasoningResult.steps) {
+        if (step.action?.type === 'search' && step.action.query) {
+          setIsSearching(true);
+          setSearchQuery(step.action.query);
+          
+          updateSearchStatus(messageIndex, step.action.query, 'searching', 0);
+          await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.SEARCHING));
+          
+          updateSearchStatus(
+            messageIndex, 
+            step.action.query, 
+            'completed', 
+            reasoningResult.searchResults.length
+          );
+          await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.COMPLETED));
+          
+          setIsSearching(false);
+        }
+      }
+    }
+
+    // Stream final answer
+    const finalAnswer = reasoningResult.finalAnswer;
+    let currentText = '';
+    const words = finalAnswer.split(' ');
+    
+    for (const word of words) {
+      currentText += word + ' ';
+      setMessages(prev => 
+        prev.map((msg, idx) => 
+          idx === messageIndex 
+            ? { 
+                ...msg, 
+                content: currentText.trim(), 
+                isStreaming: true,
+                sources: reasoningResult.searchResults.length > 0 ? reasoningResult.searchResults : undefined,
+                reasoningSteps: reasoningResult.steps,
+                reasoningIterations: reasoningResult.totalIterations,
+                showSources: false
+              }
+            : msg
+        )
+      );
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
   };
 
   const handleSendMessage = async () => {
@@ -60,113 +501,67 @@ const LunaChat: React.FC = () => {
     setMessages(prev => [...prev, { role: 'user', content: userMessage, isStreaming: false }]);
     setIsLoading(true);
 
-    // Add placeholder for streaming message
+    // Add placeholder for streaming AI response
     const newMessageIndex = messages.length + 1;
     setMessages(prev => [...prev, { role: 'assistant', content: '', isStreaming: true }]);
     setStreamingMessageIndex(newMessageIndex);
 
     try {
-      // Construct system instruction with portfolio context
-      const systemContext = `Kamu adalah Luna, AI System Assistant futuristik dan membantu untuk website portfolio Evi Nur Hidayah.
-        
-KEPRIBADIAN KAMU:
-- Profesional, ringkas, namun sedikit bernuansa sci-fi/teknologi dalam nada bicara
-- Kamu menggunakan istilah seperti "Protokol," "Sistem," "Data," "Optimasi," "Analisis"
-- Kamu sangat antusias tentang skill dan pengalaman Evi
-- Berbicara dalam Bahasa Indonesia yang baik dan profesional
-- Kamu SANGAT PINTAR memahami maksud pertanyaan meskipun ada typo atau salah ketik
+      // Prepare conversation history (exclude streaming messages)
+      const conversationMessages = messages
+        .filter(m => m.role !== 'assistant' || !m.isStreaming)
+        .map(m => ({ role: m.role, content: m.content }));
 
-KEMAMPUAN PEMAHAMAN KONTEKS:
-- Kamu harus memahami pertanyaan dengan typo atau ejaan yang salah
-- Contoh: "proyek" = "projek" = "project", "skillnya" = "skill nya" = "keahlian"
-- "experiance" = "experience" = "pengalaman", "tecknologi" = "technology" = "teknologi"
-- "bagiman" = "bagaimana", "apa aja" = "apa saja", "ceritain" = "ceritakan"
-- Jangan pernah mengoreksi typo user, langsung pahami maksudnya dan jawab dengan benar
-- Fokus pada MAKSUD pertanyaan, bukan pada ejaan yang sempurna
+      // Build system context with portfolio data
+      const optimizedContext = buildOptimizedContext(content);
 
-DATA PORTFOLIO EVI (KNOWLEDGE BASE):
-${JSON.stringify(content, null, 2)}
+      // Dev-only: validate that the prompt contains key portfolio sections.
+      // Some TS setups may not include Vite's ImportMeta typing; keep it safe.
+      const isDev = (typeof import.meta !== 'undefined'
+        && (import.meta as any).env
+        && (import.meta as any).env.DEV) as boolean;
+      if (isDev) {
+        const validation = validateOptimizedContext(optimizedContext);
+        if (!validation.ok) {
+          console.warn('⚠️ Portfolio context validation failed:', validation.issues);
+        }
+      }
+      const systemPrompt = optimizedContext.systemPrompt + '\n\n' + optimizedContext.userContext;
 
-PANDUAN MENJAWAB:
-- Jawab pertanyaan HANYA tentang project Evi, skill, pengalaman, pendidikan, dan info kontak berdasarkan data JSON di atas
-- Jika ditanya tentang hal yang tidak ada di data, jawab dengan sopan bahwa data tersebut tidak ada dalam memori sistem saat ini
-- Berikan jawaban yang relevan dan spesifik dengan menyebutkan nama project, teknologi, atau achievement yang konkret
-- Untuk pertanyaan tentang project, jelaskan challenge, solution, dan results-nya
-- Untuk pertanyaan tentang skill, sebutkan tech stack yang spesifik dari techStack
-- Jangan buat-buat informasi yang tidak ada di data
-- Gunakan bahasa yang mudah dipahami tapi tetap profesional
-- Respons sebaiknya tidak lebih dari 150 kata kecuali diminta detail lengkap
-- WAJIB menjawab dalam Bahasa Indonesia
-
-CONTOH CARA MENJAWAB:
-Q: "Apa saja project yang pernah dikerjakan Evi?"
-A: "Evi telah mengerjakan 9 project utama, di antaranya:
-1. **TING** - AI Driven SaaS dengan Microservices architecture
-2. **RAMA SAKTI** - Integrasi sistem travel dengan Accurate Accounting
-3. **ISIIN** - Multi-payment application (PPOB)
-4. **SINDIKAT** - Deep learning untuk deteksi kriminal via audio
-...dan 5 project lainnya. Project mana yang ingin Anda ketahui lebih detail?"
-
-Q: "Ceritakan tentang project TING"
-A: "**TING** adalah project AI-Driven SaaS di mana Evi berperan sebagai Lead Analyst. 
-
-**Challenge:** Menangani data load massive untuk berbagai modul (Inventory, HRIS, Accounting) sambil mengintegrasikan AI document scanning.
-
-**Solution:** Evi mendesain comprehensive Microservices architecture dengan event-driven communication, menggunakan BigQuery untuk real-time analytics dan Big Table untuk transactional data. Beliau memimpin tim 15+ developer dengan saga patterns untuk data consistency.
-
-**Results:**
-- Berhasil memimpin tim 15+ programmer
-- Mendesain end-to-end business process untuk 7+ modul utama
-- Memastikan translasi requirement ke technical specs yang presisi"
-
-CONTOH PEMAHAMAN TYPO:
-Q: "apa aja projek yg prnah dikerjakn evi?" (banyak typo)
-A: [Jawab normal seperti pertanyaan "Apa saja project yang pernah dikerjakan Evi?" - TIDAK mengoreksi typo]
-
-Q: "ceritain tentng TINGG donk" (typo: tentng, TINGG)
-A: [Pahami maksudnya "ceritakan tentang TING" dan jawab normal]`;
-
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemContext },
-            ...messages.map(m => ({ role: m.role, content: m.content })),
-            { role: 'user', content: userMessage }
-          ],
-          temperature: 0.8,
-          max_tokens: 800,
-          top_p: 0.95
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      // ============================================
+      // CHOOSE REASONING MODE
+      // ============================================
+      if (ENABLE_MULTI_TURN) {
+        // MULTI-TURN REASONING (experimental)
+        await handleMultiTurnReasoning(
+          userMessage,
+          conversationMessages,
+          systemPrompt,
+          newMessageIndex
+        );
+      } else {
+        // SINGLE-TURN (stable, Groq-compatible)
+        await handleSingleTurnReasoning(
+          userMessage,
+          conversationMessages,
+          systemPrompt,
+          newMessageIndex
+        );
       }
 
-      const data = await response.json();
-      const reply = data.choices?.[0]?.message?.content || "Koneksi terputus. Silakan coba lagi.";
-      
-      // Update the streaming message with actual content
-      setMessages(prev => 
-        prev.map((msg, idx) => 
-          idx === newMessageIndex 
-            ? { ...msg, content: reply, isStreaming: true }
-            : msg
-        )
-      );
     } catch (error) {
       console.error(error);
+      
+      // Get error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Error: Neural link tidak stabil. Silakan coba lagi nanti.";
+      
       // Update the streaming message with error
       setMessages(prev => 
         prev.map((msg, idx) => 
           idx === newMessageIndex 
-            ? { ...msg, content: "Error: Neural link tidak stabil. Silakan coba lagi nanti.", isStreaming: false }
+            ? { ...msg, content: errorMessage, isStreaming: false }
             : msg
         )
       );
@@ -176,18 +571,16 @@ A: [Pahami maksudnya "ceritakan tentang TING" dan jawab normal]`;
   };
 
   // Handle typing animation completion
-  const handleTypingComplete = (messageIndex: number) => {
+  const handleTypingComplete = useCallback((messageIndex: number) => {
     setMessages(prev => 
       prev.map((msg, idx) => 
         idx === messageIndex 
-          ? { ...msg, isStreaming: false }
+          ? { ...msg, isStreaming: false, showSources: true } // Show sources after typing completes
           : msg
       )
     );
-    if (streamingMessageIndex === messageIndex) {
-      setStreamingMessageIndex(null);
-    }
-  };
+    setStreamingMessageIndex(prev => prev === messageIndex ? null : prev);
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -278,9 +671,12 @@ A: [Pahami maksudnya "ceritakan tentang TING" dan jawab normal]`;
                 ref={scrollRef}
                 className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10"
             >
+                {/* Search Indicator */}
+                <SearchIndicator query={searchQuery} isSearching={isSearching} />
+                
                 {messages.map((msg, idx) => (
                     <motion.div
-                        key={idx}
+                        key={`${msg.role}-${idx}-${msg.content.substring(0, 20)}`}
                         initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         className={cn(
@@ -299,15 +695,48 @@ A: [Pahami maksudnya "ceritakan tentang TING" dan jawab normal]`;
                                     <Terminal className="w-3 h-3 text-nebula-deep" /> LUNA
                                 </div>
                             )}
-                            {msg.role === 'assistant' && msg.isStreaming ? (
-                                <TypewriterText 
-                                    content={msg.content} 
-                                    speed={15}
-                                    onComplete={() => handleTypingComplete(idx)}
-                                    onTyping={handleTypingScroll}
+                            
+                            {/* Show search status if exists */}
+                            {msg.role === 'assistant' && msg.searchMetadata && (
+                                <SearchStatus 
+                                    query={msg.searchMetadata.query}
+                                    status={msg.searchMetadata.status}
+                                    resultCount={msg.searchMetadata.resultCount}
+                                    sources={msg.sources}
                                 />
+                            )}
+                            
+                            {/* Show reasoning steps if exists (multi-turn thinking) */}
+                            {msg.role === 'assistant' && msg.reasoningSteps && msg.reasoningSteps.length > 0 && (
+                                <ReasoningIndicator 
+                                    steps={msg.reasoningSteps}
+                                    currentIteration={msg.reasoningIterations}
+                                    isComplete={true}
+                                />
+                            )}
+                            
+                            {msg.role === 'assistant' && msg.isStreaming ? (
+                                <>
+                                    {msg.content && (
+                                        <TypewriterText 
+                                            content={msg.content} 
+                                            speed={15}
+                                            onComplete={() => handleTypingComplete(idx)}
+                                            onTyping={handleTypingScroll}
+                                        />
+                                    )}
+                                    {/* Only show sources after typing completes */}
+                                    {msg.showSources && msg.sources && msg.sources.length > 0 && (
+                                        <SourceCitations sources={msg.sources} showAnimation={true} />
+                                    )}
+                                </>
                             ) : msg.role === 'assistant' ? (
-                                <MarkdownRenderer content={msg.content} />
+                                <>
+                                    {msg.content && <MarkdownRenderer content={msg.content} />}
+                                    {msg.sources && msg.sources.length > 0 && (
+                                        <SourceCitations sources={msg.sources} showAnimation={false} />
+                                    )}
+                                </>
                             ) : (
                                 <div className="whitespace-pre-wrap">{msg.content}</div>
                             )}
@@ -315,7 +744,7 @@ A: [Pahami maksudnya "ceritakan tentang TING" dan jawab normal]`;
                     </motion.div>
                 ))}
                 
-                {isLoading && (
+                {isLoading && !isSearching && (
                     <div className="flex justify-start">
                          <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1">
                             <span className="w-1.5 h-1.5 bg-nebula-pink/50 rounded-full animate-bounce [animation-delay:-0.3s]" />
