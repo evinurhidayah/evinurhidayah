@@ -55,5 +55,9 @@ describe('portfolioSummary deterministic grounding', () => {
     expect(hay).toContain('footer');
     expect(hay).toContain('cv');
     expect(hay).toContain('evi_nur_hidayah_cv.pdf');
+
+    // With default "all" limits, we should see at least one later project title as well.
+    // This guards against accidental reintroduction of small default truncation.
+    expect(hay).toContain('crediwise');
   });
 });

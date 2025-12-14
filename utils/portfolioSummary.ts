@@ -35,13 +35,15 @@ export function buildDeterministicPortfolioSummary(
   factsBlock: string;
   allowedTech: string[];
 } {
-  const maxProjects = options?.maxProjects ?? 6;
-  const maxProjectTech = options?.maxProjectTech ?? 6;
-  const maxStoryLines = options?.maxStoryLines ?? 6;
-  const maxSoftSkills = options?.maxSoftSkills ?? 6;
-  const maxEducation = options?.maxEducation ?? 6;
-  const maxTimelineSteps = options?.maxTimelineSteps ?? 6;
-  const maxFooterLinks = options?.maxFooterLinks ?? 8;
+  // Defaults are intentionally "all" so the assistant can see full portfolio detail.
+  // Callers can cap these to control token budget.
+  const maxProjects = options?.maxProjects ?? Number.POSITIVE_INFINITY;
+  const maxProjectTech = options?.maxProjectTech ?? Number.POSITIVE_INFINITY;
+  const maxStoryLines = options?.maxStoryLines ?? Number.POSITIVE_INFINITY;
+  const maxSoftSkills = options?.maxSoftSkills ?? Number.POSITIVE_INFINITY;
+  const maxEducation = options?.maxEducation ?? Number.POSITIVE_INFINITY;
+  const maxTimelineSteps = options?.maxTimelineSteps ?? Number.POSITIVE_INFINITY;
+  const maxFooterLinks = options?.maxFooterLinks ?? Number.POSITIVE_INFINITY;
 
   const name = content.hero?.name ?? 'Evi Nur Hidayah';
   const role = content.hero?.role ?? 'System Analyst';

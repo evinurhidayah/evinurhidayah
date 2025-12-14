@@ -250,6 +250,10 @@ ATURAN KEAKURATAN (WAJIB):
 - DILARANG menambahkan teknologi, tools, role, company, periode kerja, atau detail project yang tidak tertulis.
 - Jika user menanyakan teknologi yang tidak tercantum, jawab persis: "Tidak tercantum di portfolio content.ts".
 
+ATURAN KHUSUS PROJECT:
+- Jika user bertanya "semua proyek" / "daftar proyek" / "proyek apa saja", kamu WAJIB menuliskan daftar judul project persis sesuai SOURCE OF TRUTH (tanpa menambah/mengurangi, tanpa salah mapping).
+- Jangan pernah menyimpulkan project A = project B. Jika perlu, kutip judulnya apa adanya.
+
 ATURAN BAHASA:
 - Jawab dalam Bahasa Indonesia (kecuali user minta bahasa lain).
 
@@ -489,30 +493,35 @@ ${portfolioFacts.factsBlock}`
             { role: 'system', content: updatedSystemPrompt },
             ...conversationMessages,
             { role: 'user', content: userMessage },
-            {
-              role: 'assistant',
-              // If we recovered tool calls from XML, content may contain the XML snippet.
-              // Send an empty assistant content here so the model focuses on tool outputs.
-              content: (recoveredToolCalls.length > 0 && !(assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0)) ? '' : (assistantMessage?.content || ''),
-              ...(recoveredToolCalls.length > 0 && !(assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) ? { tool_calls: toolCalls.map(tc => ({
-                id: tc.id,
-                type: 'function',
-                function: {
-                  name: tc.name,
-                  arguments: JSON.stringify(tc.arguments)
-                }
-              })) } : { tool_calls: assistantMessage?.tool_calls })
-            },
-            ...toolCalls.map(tc => ({
-              role: 'tool',
-              tool_call_id: tc.id,
-              content: JSON.stringify({
-                success: true,
-                results: searchResults,
-                count: searchResults.length
-              })
-            }))
+            // IMPORTANT (Groq reliability):
+            // If tool calls were recovered from XML (not native tool_calls), do NOT inject them back
+            // into a follow-up request. That can lead to "tool call validation failed".
+            // Instead, provide the tool output as regular text context and forbid additional tools.
+            ...(recoveredToolCalls.length > 0 && !(assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0)
+              ? [
+                  {
+                    role: 'user',
+                    content: `HASIL PENCARIAN WEB (search_web):\n${formatSearchResults(searchResults)}\n\nGunakan hasil di atas untuk menjawab pertanyaan terakhir. Jangan melakukan tool call lagi.`,
+                  },
+                ]
+              : [
+                  {
+                    role: 'assistant',
+                    content: assistantMessage?.content || '',
+                    tool_calls: assistantMessage?.tool_calls,
+                  },
+                  ...toolCalls.map((tc) => ({
+                    role: 'tool',
+                    tool_call_id: tc.id,
+                    content: JSON.stringify({
+                      success: true,
+                      results: searchResults,
+                      count: searchResults.length,
+                    }),
+                  })),
+                ]),
           ],
+          tool_choice: (recoveredToolCalls.length > 0 && !(assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0)) ? 'none' : 'auto',
           temperature: 0.8,
           max_tokens: 800,
           top_p: 0.95
