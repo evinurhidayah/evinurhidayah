@@ -10,12 +10,12 @@ import { SearchIndicator } from './SearchIndicator';
 import { SourceCitations } from './SourceCitations';
 import { SearchStatus } from './SearchStatus';
 import { ReasoningIndicator } from './ReasoningIndicator';
-import { 
+import {
   formatSearchResults,
   SearchResult,
   searchWeb
 } from '../utils/webSearch';
-import { 
+import {
   getTools,           // Tool definitions for AI function calling
   executeTool,        // Execute search_web when AI requests it
   hasToolCalls,       // Check if AI wants to use tools
@@ -28,10 +28,10 @@ import { buildOptimizedContext } from '../utils/aiOptimizer';
 import { validateOptimizedContext } from '../utils/portfolioContextValidator';
 import { buildDeterministicPortfolioSummary, buildRoutedPortfolioContext } from '../utils/portfolioSummary';
 import { summarizeConversationIfNeeded, ConversationMemoryState } from '../utils/conversationMemory';
-import { 
+import {
   createReasoningEngine,
   ReasoningEngine,
-  ReasoningStep 
+  ReasoningStep
 } from '../utils/reasoningEngine';
 
 // ============================================
@@ -132,8 +132,8 @@ const LunaChat: React.FC<LunaChatProps> = ({ onOpenChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { 
-      role: 'assistant', 
+    {
+      role: 'assistant',
       content: "Halo! Saya Luna 👋 AI Assistant yang bisa menjawab semua pertanyaan Anda seputar Evi dan portfolionya. Saya juga bisa mencari informasi dari web jika diperlukan! Bagaimana saya bisa membantu Anda hari ini?",
       isStreaming: false
     }
@@ -166,22 +166,22 @@ const LunaChat: React.FC<LunaChatProps> = ({ onOpenChange }) => {
 
   // Helper: Update search status in UI
   const updateSearchStatus = (
-    messageIndex: number, 
-    query: string, 
+    messageIndex: number,
+    query: string,
     status: 'searching' | 'processing' | 'completed',
     resultCount: number,
     sources?: SearchResult[]
   ) => {
-    setMessages(prev => 
-      prev.map((msg, idx) => 
-        idx === messageIndex 
-          ? { 
-              ...msg, 
-              content: '', 
-              isStreaming: true,
-              searchMetadata: { query, status, resultCount },
-              sources: sources || msg.sources
-            }
+    setMessages(prev =>
+      prev.map((msg, idx) =>
+        idx === messageIndex
+          ? {
+            ...msg,
+            content: '',
+            isStreaming: true,
+            searchMetadata: { query, status, resultCount },
+            sources: sources || msg.sources
+          }
           : msg
       )
     );
@@ -272,7 +272,7 @@ IMPORTANT TOOL FORMAT:
       ? buildRoutedPortfolioContext(content, userMessage)
       : null;
     const groundedSystemPrompt = portfolioFacts
-  ? `${systemPrompt}
+      ? `${systemPrompt}
 
 MODE: PORTOFOLIO / IDENTITAS (Bahasa Indonesia)
 
@@ -289,7 +289,7 @@ ATURAN BAHASA:
 - Jawab dalam Bahasa Indonesia (kecuali user minta bahasa lain).
 
 ${portfolioFacts.factsBlock}`
-  : systemPrompt;
+      : systemPrompt;
 
     // Groq-decides: no pre-search. If the model needs web context it should request it.
 
@@ -351,10 +351,17 @@ ${portfolioFacts.factsBlock}`
 
     const tryRecoverFromToolUseFailed = async (errorPayload: any) => {
       const failedGen: string | undefined = errorPayload?.error?.failed_generation;
-      if (!failedGen || typeof failedGen !== 'string') return null;
+      if (!failedGen || typeof failedGen !== 'string') {
+        console.warn('⚠️ tool_use_failed recovery: No failed_generation found');
+        return null;
+      }
 
+      console.log('🔧 tool_use_failed recovery: Attempting to parse failed_generation:', failedGen);
       const parsed = tryParseXmlStyleToolCall(failedGen);
-      if (!parsed || !parsed.name) return null;
+      if (!parsed || !parsed.name) {
+        console.warn('⚠️ tool_use_failed recovery: Failed to parse XML-style tool call');
+        return null;
+      }
 
       // Execute the requested tool locally (no provider tool calling).
       telemetryRef.current.bump('toolcalls_xml_recovered');
@@ -370,6 +377,7 @@ ${portfolioFacts.factsBlock}`
 
       let toolResult: any;
       try {
+        console.log(`🔧 tool_use_failed recovery: Executing ${parsed.name} locally...`);
         // Safety: avoid hanging forever if a tool call stalls.
         toolResult = await Promise.race([
           executeTool(parsed.name, parsed.arguments),
@@ -377,6 +385,7 @@ ${portfolioFacts.factsBlock}`
         ]);
         telemetryRef.current.bump('tool_exec_ok');
       } catch (e) {
+        console.error('❌ tool_use_failed recovery: Tool execution failed:', e);
         telemetryRef.current.bump('tool_exec_error');
         throw e;
       }
@@ -395,12 +404,11 @@ ${portfolioFacts.factsBlock}`
       setIsSearching(false);
       setSearchQuery('');
 
-  // Follow-up: ask Groq to answer using the tool results, but forbid tools.
-  // IMPORTANT (Groq reliability): do NOT send role:'tool' here, because the original
-  // request failed tool validation. Provide results as plain text context instead.
+      // Follow-up: ask Groq to answer using the tool results, but forbid tools.
       const updatedContext = buildOptimizedContext(content, searchResults);
       const updatedSystemPrompt = updatedContext.systemPrompt + '\n\n' + updatedContext.userContext;
 
+      console.log('🔄 tool_use_failed recovery: Sending follow-up request to Groq...');
       const followUp = await fetch(GROQ_API_URL, {
         method: 'POST',
         headers: {
@@ -418,7 +426,6 @@ ${portfolioFacts.factsBlock}`
               content: `HASIL PENCARIAN WEB (${parsed.name}):\n${formatSearchResults(searchResults)}\n\nGunakan hasil di atas untuk menjawab pertanyaan terakhir. Jangan melakukan tool call lagi.`,
             },
           ],
-          // critical: do NOT allow additional tools here
           tool_choice: 'none',
           temperature: 0.8,
           max_tokens: 800,
@@ -427,6 +434,7 @@ ${portfolioFacts.factsBlock}`
       });
 
       if (!followUp.ok) {
+        console.error('❌ tool_use_failed recovery: Follow-up request failed:', followUp.status);
         telemetryRef.current.bump('groq_call_error');
         return null;
       }
@@ -437,7 +445,7 @@ ${portfolioFacts.factsBlock}`
       return typeof reply === 'string' && reply.trim() ? reply : null;
     };
 
-  const response = await callGroq(groundedSystemPrompt);
+    const response = await callGroq(groundedSystemPrompt);
 
     if (!response.ok) {
       telemetryRef.current.bump('groq_call_error');
@@ -447,9 +455,9 @@ ${portfolioFacts.factsBlock}`
       if (response.status === 400 && errorPayload?.error?.code === 'tool_use_failed') {
         const recoveredReply = await tryRecoverFromToolUseFailed(errorPayload);
         if (recoveredReply) {
-          setMessages(prev => 
-            prev.map((msg, idx) => 
-              idx === messageIndex 
+          setMessages(prev =>
+            prev.map((msg, idx) =>
+              idx === messageIndex
                 ? { ...msg, content: recoveredReply, isStreaming: true, sources: searchResults, showSources: false }
                 : msg
             )
@@ -466,15 +474,15 @@ ${portfolioFacts.factsBlock}`
 
     telemetryRef.current.bump('groq_call_ok');
 
-  const data = await response.json();
+    const data = await response.json();
 
     // Extract tool calls (normal tool_calls OR XML-style fallback)
     let assistantMessage = data?.choices?.[0]?.message;
     let recoveredToolCalls = extractToolCallsFromAssistantMessage(assistantMessage);
 
-  const hadNativeToolCalls = Array.isArray(assistantMessage?.tool_calls) && assistantMessage.tool_calls.length > 0;
-  if (hadNativeToolCalls) telemetryRef.current.bump('toolcalls_native');
-  if (!hadNativeToolCalls && recoveredToolCalls.length > 0) telemetryRef.current.bump('toolcalls_xml_recovered');
+    const hadNativeToolCalls = Array.isArray(assistantMessage?.tool_calls) && assistantMessage.tool_calls.length > 0;
+    if (hadNativeToolCalls) telemetryRef.current.bump('toolcalls_native');
+    if (!hadNativeToolCalls && recoveredToolCalls.length > 0) telemetryRef.current.bump('toolcalls_xml_recovered');
 
     // If the model returned an XML-style tool call, do one repair retry with stricter rules.
     if (!disableTools && recoveredToolCalls.length > 0 && !assistantMessage?.tool_calls) {
@@ -499,16 +507,16 @@ ${portfolioFacts.factsBlock}`
       const toolCalls = (assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0)
         ? extractToolCalls({ choices: [{ message: assistantMessage }] })
         : recoveredToolCalls;
-      
+
       for (const toolCall of toolCalls) {
         const { query, purpose } = toolCall.arguments;
-        
+
         setIsSearching(true);
         setSearchQuery(query);
-        
+
         updateSearchStatus(messageIndex, query, 'searching', 0);
         await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.SEARCHING));
-        
+
         let toolResult: any;
         try {
           toolResult = await executeTool(toolCall.name, toolCall.arguments);
@@ -517,17 +525,17 @@ ${portfolioFacts.factsBlock}`
           telemetryRef.current.bump('tool_exec_error');
           throw e;
         }
-        
+
         if (toolResult.success && toolResult.results) {
           searchResults = toolResult.results;
-          
+
           updateSearchStatus(messageIndex, query, 'processing', searchResults.length);
           await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.PROCESSING));
-          
+
           updateSearchStatus(messageIndex, query, 'completed', searchResults.length, searchResults);
           await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.COMPLETED));
         }
-        
+
         setIsSearching(false);
         setSearchQuery('');
       }
@@ -554,27 +562,27 @@ ${portfolioFacts.factsBlock}`
             // Instead, provide the tool output as regular text context and forbid additional tools.
             ...(recoveredToolCalls.length > 0 && !(assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0)
               ? [
-                  {
-                    role: 'user',
-                    content: `HASIL PENCARIAN WEB (search_web):\n${formatSearchResults(searchResults)}\n\nGunakan hasil di atas untuk menjawab pertanyaan terakhir. Jangan melakukan tool call lagi.`,
-                  },
-                ]
+                {
+                  role: 'user',
+                  content: `HASIL PENCARIAN WEB (search_web):\n${formatSearchResults(searchResults)}\n\nGunakan hasil di atas untuk menjawab pertanyaan terakhir. Jangan melakukan tool call lagi.`,
+                },
+              ]
               : [
-                  {
-                    role: 'assistant',
-                    content: assistantMessage?.content || '',
-                    tool_calls: assistantMessage?.tool_calls,
-                  },
-                  ...toolCalls.map((tc) => ({
-                    role: 'tool',
-                    tool_call_id: tc.id,
-                    content: JSON.stringify({
-                      success: true,
-                      results: searchResults,
-                      count: searchResults.length,
-                    }),
-                  })),
-                ]),
+                {
+                  role: 'assistant',
+                  content: assistantMessage?.content || '',
+                  tool_calls: assistantMessage?.tool_calls,
+                },
+                ...toolCalls.map((tc) => ({
+                  role: 'tool',
+                  tool_call_id: tc.id,
+                  content: JSON.stringify({
+                    success: true,
+                    results: searchResults,
+                    count: searchResults.length,
+                  }),
+                })),
+              ]),
           ],
           tool_choice: (recoveredToolCalls.length > 0 && !(assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0)) ? 'none' : 'auto',
           temperature: 0.8,
@@ -590,9 +598,9 @@ ${portfolioFacts.factsBlock}`
       const finalData = await finalResponse.json();
       const reply = finalData.choices?.[0]?.message?.content || "Koneksi terputus. Silakan coba lagi.";
 
-      setMessages(prev => 
-        prev.map((msg, idx) => 
-          idx === messageIndex 
+      setMessages(prev =>
+        prev.map((msg, idx) =>
+          idx === messageIndex
             ? { ...msg, content: reply, isStreaming: true, sources: searchResults, showSources: false }
             : msg
         )
@@ -600,10 +608,10 @@ ${portfolioFacts.factsBlock}`
     } else {
       // No search needed
       const reply = data.choices?.[0]?.message?.content || "Koneksi terputus. Silakan coba lagi.";
-      
-      setMessages(prev => 
-        prev.map((msg, idx) => 
-          idx === messageIndex 
+
+      setMessages(prev =>
+        prev.map((msg, idx) =>
+          idx === messageIndex
             ? { ...msg, content: reply, isStreaming: true, showSources: false }
             : msg
         )
@@ -649,18 +657,18 @@ ${portfolioFacts.factsBlock}`
         if (step.action?.type === 'search' && step.action.query) {
           setIsSearching(true);
           setSearchQuery(step.action.query);
-          
+
           updateSearchStatus(messageIndex, step.action.query, 'searching', 0);
           await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.SEARCHING));
-          
+
           updateSearchStatus(
-            messageIndex, 
-            step.action.query, 
-            'completed', 
+            messageIndex,
+            step.action.query,
+            'completed',
             reasoningResult.searchResults.length
           );
           await new Promise(resolve => setTimeout(resolve, SEARCH_DELAY.COMPLETED));
-          
+
           setIsSearching(false);
         }
       }
@@ -670,21 +678,21 @@ ${portfolioFacts.factsBlock}`
     const finalAnswer = reasoningResult.finalAnswer;
     let currentText = '';
     const words = finalAnswer.split(' ');
-    
+
     for (const word of words) {
       currentText += word + ' ';
-      setMessages(prev => 
-        prev.map((msg, idx) => 
-          idx === messageIndex 
-            ? { 
-                ...msg, 
-                content: currentText.trim(), 
-                isStreaming: true,
-                sources: reasoningResult.searchResults.length > 0 ? reasoningResult.searchResults : undefined,
-                reasoningSteps: reasoningResult.steps,
-                reasoningIterations: reasoningResult.totalIterations,
-                showSources: false
-              }
+      setMessages(prev =>
+        prev.map((msg, idx) =>
+          idx === messageIndex
+            ? {
+              ...msg,
+              content: currentText.trim(),
+              isStreaming: true,
+              sources: reasoningResult.searchResults.length > 0 ? reasoningResult.searchResults : undefined,
+              reasoningSteps: reasoningResult.steps,
+              reasoningIterations: reasoningResult.totalIterations,
+              showSources: false
+            }
             : msg
         )
       );
@@ -750,16 +758,16 @@ ${portfolioFacts.factsBlock}`
 
     } catch (error) {
       console.error(error);
-      
+
       // Get error message
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : "Error: Neural link tidak stabil. Silakan coba lagi nanti.";
-      
+
       // Update the streaming message with error
-      setMessages(prev => 
-        prev.map((msg, idx) => 
-          idx === newMessageIndex 
+      setMessages(prev =>
+        prev.map((msg, idx) =>
+          idx === newMessageIndex
             ? { ...msg, content: errorMessage, isStreaming: false }
             : msg
         )
@@ -771,9 +779,9 @@ ${portfolioFacts.factsBlock}`
 
   // Handle typing animation completion
   const handleTypingComplete = useCallback((messageIndex: number) => {
-    setMessages(prev => 
-      prev.map((msg, idx) => 
-        idx === messageIndex 
+    setMessages(prev =>
+      prev.map((msg, idx) =>
+        idx === messageIndex
           ? { ...msg, isStreaming: false, showSources: true } // Show sources after typing completes
           : msg
       )
@@ -797,24 +805,24 @@ ${portfolioFacts.factsBlock}`
       {/* Floating Action Button (FAB) */}
       <AnimatePresence>
         {!isOpen && (
-            <MotionButton
-                initial={{ scale: 0, rotate: 180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                exit={{ scale: 0, rotate: -180 }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full bg-space-900 border border-nebula-pink/50 shadow-[0_0_20px_rgba(255,0,204,0.3)] flex items-center justify-center group cursor-pointer"
-            >
-                {/* Pulsing Rings - Pink/Purple Theme */}
-                <div className="absolute inset-0 rounded-full border border-nebula-pink/30 animate-ping opacity-20" />
-                <div className="absolute inset-0 rounded-full bg-nebula-pink/10 blur-sm group-hover:bg-nebula-pink/20 transition-colors" />
-                
-                <Bot className="w-7 h-7 text-nebula-pink relative z-10" />
-                
-                {/* Notification Dot - Green for Online */}
-                <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border border-space-900 shadow-md" />
-            </MotionButton>
+          <MotionButton
+            initial={{ scale: 0, rotate: 180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            exit={{ scale: 0, rotate: -180 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setIsOpen(true)}
+            className="fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full bg-space-900 border border-nebula-pink/50 shadow-[0_0_20px_rgba(255,0,204,0.3)] flex items-center justify-center group cursor-pointer"
+          >
+            {/* Pulsing Rings - Pink/Purple Theme */}
+            <div className="absolute inset-0 rounded-full border border-nebula-pink/30 animate-ping opacity-20" />
+            <div className="absolute inset-0 rounded-full bg-nebula-pink/10 blur-sm group-hover:bg-nebula-pink/20 transition-colors" />
+
+            <Bot className="w-7 h-7 text-nebula-pink relative z-10" />
+
+            {/* Notification Dot - Green for Online */}
+            <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border border-space-900 shadow-md" />
+          </MotionButton>
         )}
       </AnimatePresence>
 
@@ -827,163 +835,163 @@ ${portfolioFacts.factsBlock}`
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className={cn(
-    "fixed bottom-6 right-6 z-[9999] isolate bg-space-900/95 backdrop-blur-xl border border-nebula-pink/20 rounded-2xl shadow-[0_0_30px_rgba(255,0,204,0.22)] flex flex-col overflow-hidden transition-all duration-300 ease-in-out origin-bottom-right",
-                // Responsive Size Logic
-                isMaximized 
-                    ? "w-[calc(100vw-3rem)] h-[calc(100vh-6rem)] md:w-[600px] md:h-[700px]" 
-                    : "w-[calc(100vw-3rem)] md:w-[400px] h-[500px] max-h-[80vh]"
+              "fixed bottom-6 right-6 z-[9999] isolate bg-space-900/95 backdrop-blur-xl border border-nebula-pink/20 rounded-2xl shadow-[0_0_30px_rgba(255,0,204,0.22)] flex flex-col overflow-hidden transition-all duration-300 ease-in-out origin-bottom-right",
+              // Responsive Size Logic
+              isMaximized
+                ? "w-[calc(100vw-3rem)] h-[calc(100vh-6rem)] md:w-[600px] md:h-[700px]"
+                : "w-[calc(100vw-3rem)] md:w-[400px] h-[500px] max-h-[80vh]"
             )}
           >
             {/* Header */}
             <div className="p-4 bg-white/5 border-b border-white/10 flex items-center justify-between relative overflow-hidden shrink-0">
-                <div className="absolute inset-0 bg-gradient-to-r from-nebula-pink/10 to-transparent opacity-50 pointer-events-none" />
-                
-                <div className="flex items-center gap-3 relative z-10">
-                    <div className="w-8 h-8 rounded-lg bg-nebula-pink/20 border border-nebula-pink/50 flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-nebula-pink" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-white text-sm tracking-wide">LUNA AI</h3>
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-[10px] font-mono text-emerald-400">ONLINE</span>
-                        </div>
-                    </div>
-                </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-nebula-pink/10 to-transparent opacity-50 pointer-events-none" />
 
-                <div className="flex items-center gap-1 relative z-10">
-                    {/* Maximize Toggle */}
-                    <button 
-                        onClick={() => setIsMaximized(!isMaximized)}
-                        className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors cursor-pointer"
-                    >
-                        {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                    </button>
-
-                    <button 
-                        onClick={() => setIsOpen(false)}
-                        className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors cursor-pointer"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-8 h-8 rounded-lg bg-nebula-pink/20 border border-nebula-pink/50 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-nebula-pink" />
                 </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm tracking-wide">LUNA AI</h3>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[10px] font-mono text-emerald-400">ONLINE</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 relative z-10">
+                {/* Maximize Toggle */}
+                <button
+                  onClick={() => setIsMaximized(!isMaximized)}
+                  className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors cursor-pointer"
+                >
+                  {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Messages Area */}
-            <div 
-                ref={scrollRef}
-                className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10"
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10"
             >
-                {/* Search Indicator */}
-                <SearchIndicator query={searchQuery} isSearching={isSearching} />
-                
-                {messages.map((msg, idx) => (
-                    <motion.div
-                        key={`${msg.role}-${idx}-${msg.content.substring(0, 20)}`}
-                        initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className={cn(
-                            "flex w-full",
-                            msg.role === 'user' ? "justify-end" : "justify-start"
+              {/* Search Indicator */}
+              <SearchIndicator query={searchQuery} isSearching={isSearching} />
+
+              {messages.map((msg, idx) => (
+                <motion.div
+                  key={`${msg.role}-${idx}-${msg.content.substring(0, 20)}`}
+                  initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={cn(
+                    "flex w-full",
+                    msg.role === 'user' ? "justify-end" : "justify-start"
+                  )}
+                >
+                  <div className={cn(
+                    "max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed relative",
+                    msg.role === 'user'
+                      ? "bg-nebula-pink/20 border border-nebula-pink/30 text-white rounded-tr-sm"
+                      : "bg-white/5 border border-white/10 text-blue-100/90 rounded-tl-sm"
+                  )}>
+                    {msg.role === 'assistant' && (
+                      <div className="absolute -top-4 -left-1 text-[10px] font-mono text-white/30 flex items-center gap-1">
+                        <Terminal className="w-3 h-3 text-nebula-deep" /> LUNA
+                      </div>
+                    )}
+
+                    {/* Show search status if exists */}
+                    {msg.role === 'assistant' && msg.searchMetadata && (
+                      <SearchStatus
+                        query={msg.searchMetadata.query}
+                        status={msg.searchMetadata.status}
+                        resultCount={msg.searchMetadata.resultCount}
+                        sources={msg.sources}
+                      />
+                    )}
+
+                    {/* Show reasoning steps if exists (multi-turn thinking) */}
+                    {msg.role === 'assistant' && msg.reasoningSteps && msg.reasoningSteps.length > 0 && (
+                      <ReasoningIndicator
+                        steps={msg.reasoningSteps}
+                        currentIteration={msg.reasoningIterations}
+                        isComplete={true}
+                      />
+                    )}
+
+                    {msg.role === 'assistant' && msg.isStreaming ? (
+                      <>
+                        {msg.content && (
+                          <TypewriterText
+                            content={msg.content}
+                            speed={15}
+                            onComplete={() => handleTypingComplete(idx)}
+                            onTyping={handleTypingScroll}
+                          />
                         )}
-                    >
-                        <div className={cn(
-                            "max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed relative",
-                            msg.role === 'user' 
-                                ? "bg-nebula-pink/20 border border-nebula-pink/30 text-white rounded-tr-sm" 
-                                : "bg-white/5 border border-white/10 text-blue-100/90 rounded-tl-sm"
-                        )}>
-                            {msg.role === 'assistant' && (
-                                <div className="absolute -top-4 -left-1 text-[10px] font-mono text-white/30 flex items-center gap-1">
-                                    <Terminal className="w-3 h-3 text-nebula-deep" /> LUNA
-                                </div>
-                            )}
-                            
-                            {/* Show search status if exists */}
-                            {msg.role === 'assistant' && msg.searchMetadata && (
-                                <SearchStatus 
-                                    query={msg.searchMetadata.query}
-                                    status={msg.searchMetadata.status}
-                                    resultCount={msg.searchMetadata.resultCount}
-                                    sources={msg.sources}
-                                />
-                            )}
-                            
-                            {/* Show reasoning steps if exists (multi-turn thinking) */}
-                            {msg.role === 'assistant' && msg.reasoningSteps && msg.reasoningSteps.length > 0 && (
-                                <ReasoningIndicator 
-                                    steps={msg.reasoningSteps}
-                                    currentIteration={msg.reasoningIterations}
-                                    isComplete={true}
-                                />
-                            )}
-                            
-                            {msg.role === 'assistant' && msg.isStreaming ? (
-                                <>
-                                    {msg.content && (
-                                        <TypewriterText 
-                                            content={msg.content} 
-                                            speed={15}
-                                            onComplete={() => handleTypingComplete(idx)}
-                                            onTyping={handleTypingScroll}
-                                        />
-                                    )}
-                                    {/* Only show sources after typing completes */}
-                                    {msg.showSources && msg.sources && msg.sources.length > 0 && (
-                                        <SourceCitations sources={msg.sources} showAnimation={true} />
-                                    )}
-                                </>
-                            ) : msg.role === 'assistant' ? (
-                                <>
-                                    {msg.content && <MarkdownRenderer content={msg.content} />}
-                                    {msg.sources && msg.sources.length > 0 && (
-                                        <SourceCitations sources={msg.sources} showAnimation={false} />
-                                    )}
-                                </>
-                            ) : (
-                                <div className="whitespace-pre-wrap">{msg.content}</div>
-                            )}
-                        </div>
-                    </motion.div>
-                ))}
-                
-                {isLoading && !isSearching && (
-                    <div className="flex justify-start">
-                         <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 bg-nebula-pink/50 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                            <span className="w-1.5 h-1.5 bg-nebula-pink/50 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                            <span className="w-1.5 h-1.5 bg-nebula-pink/50 rounded-full animate-bounce" />
-                         </div>
-                    </div>
-                )}
+                        {/* Only show sources after typing completes */}
+                        {msg.showSources && msg.sources && msg.sources.length > 0 && (
+                          <SourceCitations sources={msg.sources} showAnimation={true} />
+                        )}
+                      </>
+                    ) : msg.role === 'assistant' ? (
+                      <>
+                        {msg.content && <MarkdownRenderer content={msg.content} />}
+                        {msg.sources && msg.sources.length > 0 && (
+                          <SourceCitations sources={msg.sources} showAnimation={false} />
+                        )}
+                      </>
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+
+              {isLoading && !isSearching && (
+                <div className="flex justify-start">
+                  <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-nebula-pink/50 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-1.5 h-1.5 bg-nebula-pink/50 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-1.5 h-1.5 bg-nebula-pink/50 rounded-full animate-bounce" />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Input Area */}
             <div className="p-4 bg-black/20 border-t border-white/10 shrink-0">
-        <div className="relative flex items-center isolate">
-                    <input 
-            ref={inputRef}
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Tanya tentang Evi..."
-            disabled={isInputDisabled}
-                        className="w-full bg-space-950/50 border border-white/10 rounded-xl pl-4 pr-12 py-3 text-sm text-white focus:outline-none focus:border-nebula-pink/50 focus:ring-1 focus:ring-nebula-pink/20 placeholder:text-white/20 transition-all font-mono"
-                    />
-                    <button 
-                        onClick={handleSendMessage}
-            disabled={!input.trim() || isInputDisabled}
-                        className="absolute right-2 p-1.5 rounded-lg bg-nebula-pink/20 text-nebula-pink hover:bg-nebula-pink hover:text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                        <Send className="w-4 h-4" />
-                    </button>
-                </div>
-                <div className="mt-2 text-center">
-                    <span className="text-[10px] text-white/20 font-mono">
-                        Powered by Groq Llama 3.3 70B • AI can make mistakes
-                    </span>
-                </div>
+              <div className="relative flex items-center isolate">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Tanya tentang Evi..."
+                  disabled={isInputDisabled}
+                  className="w-full bg-space-950/50 border border-white/10 rounded-xl pl-4 pr-12 py-3 text-sm text-white focus:outline-none focus:border-nebula-pink/50 focus:ring-1 focus:ring-nebula-pink/20 placeholder:text-white/20 transition-all font-mono"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!input.trim() || isInputDisabled}
+                  className="absolute right-2 p-1.5 rounded-lg bg-nebula-pink/20 text-nebula-pink hover:bg-nebula-pink hover:text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="mt-2 text-center">
+                <span className="text-[10px] text-white/20 font-mono">
+                  Powered by Groq Llama 3.3 70B • AI can make mistakes
+                </span>
+              </div>
             </div>
           </MotionDiv>
         )}

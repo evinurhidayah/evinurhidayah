@@ -21,10 +21,7 @@ export function tryParseXmlStyleToolCall(content: string):
 
   const trimmed = content.trim();
   // Accept both raw and escaped forms that might appear in error payloads.
-  // Example: "<function=search_web{...}></function>" or "\u003cfunction=...\u003e\u003c/function\u003e".
   const normalized = trimmed
-    // Some providers serialize escapes as a literal backslash-u sequence.
-    // Normalize those first.
     .replace(/\\u003c/g, '<')
     .replace(/\\u003e/g, '>')
     .replace(/\u003c/g, '<')
@@ -32,26 +29,43 @@ export function tryParseXmlStyleToolCall(content: string):
     .trim();
 
   // Find an XML-style tool call block even if the provider wraps it in other text.
-  const blockMatch = normalized.match(/<function=[\s\S]*?<\/function>/);
-  const candidate = blockMatch ? blockMatch[0].trim() : normalized;
+  // We look for <function=NAME{...}> or <function=NAME({...})>
+  const blockMatch = normalized.match(/<function=([a-zA-Z0-9_\-]+)\s*(\(?\{[\s\S]*?\}\)?)\s*>?\s*<\/function>/);
+  
+  if (!blockMatch) {
+    // Fallback: search for just the tag start if the end is missing or malformed
+    const startMatch = normalized.match(/<function=([a-zA-Z0-9_\-]+)\s*(\(?\{[\s\S]*?\}\)?)/);
+    if (!startMatch) return null;
+    
+    const name = startMatch[1];
+    let jsonPart = startMatch[2].trim();
+    
+    // Remove wrapping parentheses if present
+    if (jsonPart.startsWith('(') && jsonPart.endsWith(')')) {
+      jsonPart = jsonPart.substring(1, jsonPart.length - 1).trim();
+    }
+    
+    try {
+      return { name, arguments: JSON.parse(jsonPart) };
+    } catch {
+      return null;
+    }
+  }
 
-  if (!candidate.startsWith('<function=')) return null;
+  const name = blockMatch[1];
+  let jsonPart = blockMatch[2].trim();
 
-  // Capture name and JSON payload.
-  // Groq sometimes omits the closing '>' after the JSON payload, yielding:
-  //   <function=search_web{...}</function>
-  // so we allow an optional '>' before </function>.
-  const match = candidate.match(/^<function=([a-zA-Z0-9_\-]+)\s*(\{[\s\S]*\})\s*>?\s*<\/function>\s*$/);
-  if (!match) return null;
+  // Remove wrapping parentheses if present
+  if (jsonPart.startsWith('(') && jsonPart.endsWith(')')) {
+    jsonPart = jsonPart.substring(1, jsonPart.length - 1).trim();
+  }
 
-  const name = match[1];
-  const json = match[2];
   try {
-    const args = JSON.parse(json);
+    const args = JSON.parse(jsonPart);
     return { name, arguments: args };
   } catch {
     // Last resort: try to extract a JSON object within the tag.
-  const looseJsonMatch = candidate.match(/\{[\s\S]*\}/);
+    const looseJsonMatch = jsonPart.match(/\{[\s\S]*\}/);
     if (!looseJsonMatch) return null;
     try {
       const args = JSON.parse(looseJsonMatch[0]);

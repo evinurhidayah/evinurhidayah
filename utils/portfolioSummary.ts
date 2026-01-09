@@ -17,7 +17,9 @@ export type RoutedPortfolioMode =
   | 'education'
   | 'soft-skills'
   | 'timeline'
-  | 'contact';
+  | 'contact'
+  | 'experience'
+  | 'tech-stack';
 
 const uniq = (items: string[]) => {
   const seen = new Set<string>();
@@ -66,22 +68,22 @@ export function buildDeterministicPortfolioSummary(
 
   const experience = Array.isArray(content.about?.experience)
     ? content.about.experience
-        .map((e) => `- ${e.role} — ${e.company} (${e.period})${e.description ? ` — ${e.description}` : ''}`)
-        .join('\n')
+      .map((e) => `- ${e.role} — ${e.company} (${e.period})${e.description ? ` — ${e.description}` : ''}`)
+      .join('\n')
     : '';
 
   const softSkills = Array.isArray(content.about?.softSkills)
     ? content.about.softSkills
-        .slice(0, Math.max(0, maxSoftSkills))
-        .map((s) => `- ${s.title}${s.desc ? `: ${s.desc}` : ''}`)
-        .join('\n')
+      .slice(0, Math.max(0, maxSoftSkills))
+      .map((s) => `- ${s.title}${s.desc ? `: ${s.desc}` : ''}`)
+      .join('\n')
     : '';
 
   const education = Array.isArray(content.about?.education)
     ? content.about.education
-        .slice(0, Math.max(0, maxEducation))
-        .map((e) => `- ${e.degree} — ${e.school} (${e.year})`)
-        .join('\n')
+      .slice(0, Math.max(0, maxEducation))
+      .map((e) => `- ${e.degree} — ${e.school} (${e.year})`)
+      .join('\n')
     : '';
 
   const techStack = content.about?.techStack;
@@ -120,9 +122,9 @@ export function buildDeterministicPortfolioSummary(
   const timelineTitle = content.timeline?.title ?? '';
   const timelineSteps = Array.isArray(content.timeline?.steps)
     ? content.timeline.steps
-        .slice(0, Math.max(0, maxTimelineSteps))
-        .map((s) => `- ${s.title}: ${s.description}`)
-        .join('\n')
+      .slice(0, Math.max(0, maxTimelineSteps))
+      .map((s) => `- ${s.title}: ${s.description}`)
+      .join('\n')
     : '';
 
   const footer = content.footer;
@@ -130,15 +132,15 @@ export function buildDeterministicPortfolioSummary(
   const footerMission = footer?.mission ?? '';
   const footerCoordinates = Array.isArray(footer?.coordinates)
     ? footer!.coordinates
-        .slice(0, Math.max(0, maxFooterLinks))
-        .map((c) => `- ${c.label}: ${c.href}`)
-        .join('\n')
+      .slice(0, Math.max(0, maxFooterLinks))
+      .map((c) => `- ${c.label}: ${c.href}`)
+      .join('\n')
     : '';
   const footerSocials = Array.isArray(footer?.socials)
     ? footer!.socials
-        .slice(0, Math.max(0, maxFooterLinks))
-        .map((s) => `- ${s.label}: ${s.href}`)
-        .join('\n')
+      .slice(0, Math.max(0, maxFooterLinks))
+      .map((s) => `- ${s.label}: ${s.href}`)
+      .join('\n')
     : '';
 
   const cvUrl = content.cv?.url ?? '';
@@ -215,10 +217,12 @@ export function detectRoutedPortfolioMode(content: ContentData, userMessage: str
   // If user mentions a known project title, go project mode.
   if (pickProjectByTitleHint(content, msg)) return 'project';
 
-  if (/(pendidikan|kuliah|education|sertif|cert|universitas)/i.test(msg)) return 'education';
-  if (/(soft\s*skill|softskill|leadership|kepemimpinan|team|tim)/i.test(msg)) return 'soft-skills';
-  if (/(timeline|process|proses|tahapan|metode|workflow)/i.test(msg)) return 'timeline';
-  if (/(kontak|contact|linkedin|instagram|email|cv|resume)/i.test(msg)) return 'contact';
+  if (/(pendidikan|kuliah|sekolah|education|sertif|cert|universitas|lulusan|alumni|gelar|degree|ijazah|diploma|sarjana|master|s1|s2|s3|kampus|academy|bootcamp|uty|yogyakarta)/i.test(msg)) return 'education';
+  if (/(soft\s*skill|softskill|leadership|kepemimpinan|team|tim|komunikasi|communication|problem\s*solving|manajemen|management|kolaborasi|collaboration|adaptasi|adaptation|interpersonal|empati|empathy|kritis|critical\s*thinking)/i.test(msg)) return 'soft-skills';
+  if (/(timeline|process|proses|tahapan|metode|workflow|cara\s*kerja|langkah|step|discovery|analysis|design|development|deployment|siklus|lifecycle|metodologi|methodology|sprint|agile)/i.test(msg)) return 'timeline';
+  if (/(kontak|contact|linkedin|instagram|email|cv|resume|portofolio|portfolio|github|website|link|sosmed|social\s*media|hubungi|telp|wa|whatsapp|telegram|dm|pesan|message)/i.test(msg)) return 'contact';
+  if (/(pengalaman|kerja|karir|career|experience|work|job|perusahaan|company|kantor|office|history|riwayat|jabatan|posisi|role|magang|intern|horus|libur\s*ngoding)/i.test(msg)) return 'experience';
+  if (/(tech|teknologi|stack|bahasa|language|framework|database|tool|alat|skill|kemampuan|keahlian|modeling|architecture|data|development|management|uml|erd|bpmn|figma|sql|postgresql|bigquery|jira|clickup)/i.test(msg)) return 'tech-stack';
 
   return 'base';
 }
@@ -345,6 +349,35 @@ export function buildRoutedPortfolioContext(
       '',
       t?.title ? `**Timeline / Process (${t.title}):**` : '**Timeline / Process:**',
       steps.length ? steps.map((s) => `- ${s.title}: ${s.description}`).join('\n') : '(not provided)',
+    ].filter(Boolean).join('\n');
+    return { mode, factsBlock, allowedTech };
+  }
+
+  if (mode === 'experience') {
+    const exp = Array.isArray(content.about?.experience) ? content.about!.experience : [];
+    const factsBlock = [
+      `**SOURCE OF TRUTH (content.ts)**`,
+      `Name: ${name}`,
+      '',
+      `**Work Experience:**`,
+      exp.length ? exp.map((e) => `- ${e.role} — ${e.company} (${e.period})${e.description ? ` — ${e.description}` : ''}`).join('\n') : '(not provided)',
+    ].filter(Boolean).join('\n');
+    return { mode, factsBlock, allowedTech };
+  }
+
+  if (mode === 'tech-stack') {
+    const ts = content.about?.techStack;
+    const techModeling = ts?.modeling?.skills ?? [];
+    const techData = ts?.data?.skills ?? [];
+    const techTools = ts?.tools?.skills ?? [];
+    const factsBlock = [
+      `**SOURCE OF TRUTH (content.ts)**`,
+      `Name: ${name}`,
+      '',
+      `**Tech Stack (from content.ts):**`,
+      techModeling.length ? `- Modeling & Architecture: ${techModeling.join(', ')}` : '',
+      techData.length ? `- Data & Development: ${techData.join(', ')}` : '',
+      techTools.length ? `- Management & Tools: ${techTools.join(', ')}` : '',
     ].filter(Boolean).join('\n');
     return { mode, factsBlock, allowedTech };
   }

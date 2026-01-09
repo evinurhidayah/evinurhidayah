@@ -26,10 +26,10 @@ export function smartTruncate(text: string, maxTokens: number): string {
   const targetChars = maxTokens * 4;
   const keepStart = Math.floor(targetChars * 0.4);
   const keepEnd = Math.floor(targetChars * 0.4);
-  
+
   const start = text.substring(0, keepStart);
   const end = text.substring(text.length - keepEnd);
-  
+
   return `${start}\n\n[... ${tokens - maxTokens} tokens diringkas ...]\n\n${end}`;
 }
 
@@ -71,19 +71,24 @@ export function buildOptimizedContext(
   // --- Experience (full list) ---
   const experienceLines = Array.isArray(portfolioData.about?.experience)
     ? portfolioData.about.experience.map((e: any) => {
-        const desc = e.description ? ` — ${e.description}` : '';
-        return `- ${e.role} — ${e.company} (${e.period})${desc}`;
-      })
+      const desc = e.description ? ` — ${e.description}` : '';
+      return `- ${e.role} — ${e.company} (${e.period})${desc}`;
+    })
+    : [];
+
+  // --- Soft Skills ---
+  const softSkillsLines = Array.isArray(portfolioData.about?.softSkills)
+    ? portfolioData.about.softSkills.map((s: any) => `- ${s.title}${s.desc ? `: ${s.desc}` : ''}`)
     : [];
 
   // --- Tech stack (structured) ---
   const techStack = portfolioData.about?.techStack;
   const techStackBlock = techStack
     ? [
-        `Modeling & Architecture: ${(techStack.modeling?.skills || []).join(', ')}`,
-        `Data & Development: ${(techStack.data?.skills || []).join(', ')}`,
-        `Management & Tools: ${(techStack.tools?.skills || []).join(', ')}`,
-      ].filter(Boolean).join('\n')
+      `Modeling & Architecture: ${(techStack.modeling?.skills || []).join(', ')}`,
+      `Data & Development: ${(techStack.data?.skills || []).join(', ')}`,
+      `Management & Tools: ${(techStack.tools?.skills || []).join(', ')}`,
+    ].filter(Boolean).join('\n')
     : '';
 
   // --- Projects (summary with key fields) ---
@@ -104,6 +109,11 @@ export function buildOptimizedContext(
     ].filter(Boolean).join('\n');
   });
 
+  // --- Education ---
+  const educationLines = Array.isArray(portfolioData.about?.education)
+    ? portfolioData.about.education.map((e: any) => `- ${e.degree} — ${e.school} (${e.year})`)
+    : [];
+
   // --- Timeline / process ---
   const timelineSteps: any[] = Array.isArray(portfolioData.timeline?.steps)
     ? portfolioData.timeline.steps
@@ -116,11 +126,11 @@ export function buildOptimizedContext(
   const footer = portfolioData.footer;
   const footerBlock = footer
     ? [
-        footer.mission ? `Mission: ${footer.mission}` : '',
-        Array.isArray(footer.coordinates)
-          ? `Sections: ${footer.coordinates.map((c: any) => c.label).join(', ')}`
-          : '',
-      ].filter(Boolean).join('\n')
+      footer.mission ? `Mission: ${footer.mission}` : '',
+      Array.isArray(footer.coordinates)
+        ? `Sections: ${footer.coordinates.map((c: any) => c.label).join(', ')}`
+        : '',
+    ].filter(Boolean).join('\n')
     : '';
 
   // ============ Assemble deterministic context ============
@@ -148,10 +158,24 @@ export function buildOptimizedContext(
     );
   }
 
+  if (softSkillsLines.length > 0) {
+    tryAppend(
+      [`**SOFT SKILLS:**`, ...softSkillsLines].join('\n'),
+      160
+    );
+  }
+
   if (experienceLines.length > 0) {
     tryAppend(
       [`**WORK EXPERIENCE:**`, ...experienceLines].join('\n'),
       240
+    );
+  }
+
+  if (educationLines.length > 0) {
+    tryAppend(
+      [`**EDUCATION:**`, ...educationLines].join('\n'),
+      160
     );
   }
 
@@ -188,7 +212,7 @@ export function buildOptimizedContext(
   if (searchResults && searchResults.length > 0) {
     const searchSummary = `\n\nWeb Search Results:\n${summarizeSearchResults(searchResults, 3)}`;
     const searchTokens = estimateTokens(searchSummary);
-    
+
     if (tokens + searchTokens <= maxTokens) {
       context += searchSummary;
       tokens += searchTokens;
@@ -241,7 +265,7 @@ export function shouldRequestSearch(aiResponse: string): boolean {
     console.log('🤖 AI requested search with [SEARCH:] marker');
     return true;
   }
-  
+
   // Pattern 2: Natural language search indicators
   const searchTriggers = [
     'saya perlu mencari informasi',
@@ -255,14 +279,14 @@ export function shouldRequestSearch(aiResponse: string): boolean {
     'perlu informasi lebih',
   ];
 
-  const hasSearchTrigger = searchTriggers.some(trigger => 
+  const hasSearchTrigger = searchTriggers.some(trigger =>
     aiResponse.toLowerCase().includes(trigger.toLowerCase())
   );
-  
+
   if (hasSearchTrigger) {
     console.log('🤖 AI indicated need for search (natural language)');
   }
-  
+
   return hasSearchTrigger;
 }
 
@@ -279,13 +303,13 @@ export function extractSearchFromAI(aiResponse: string): string | null {
     console.log(`🔍 Extracted search query from [SEARCH:]: "${query}"`);
     return query;
   }
-  
+
   // Pattern 2: Natural language with quotes
   const quotedPatterns = [
     /(?:cari|search|mencari)(?:\s+dulu)?(?:\s+tentang)?(?:\s+informasi)?\s+"([^"]+)"/i,
     /(?:cari|search|mencari)(?:\s+dulu)?(?:\s+tentang)?(?:\s+informasi)?\s+'([^']+)'/i,
   ];
-  
+
   for (const pattern of quotedPatterns) {
     const match = aiResponse.match(pattern);
     if (match) {
@@ -294,7 +318,7 @@ export function extractSearchFromAI(aiResponse: string): string | null {
       return query;
     }
   }
-  
+
   // Pattern 3: Extract from natural sentence
   const naturalPattern = /(?:mencari|cari|search)(?:\s+informasi)?(?:\s+tentang)\s+([a-zA-Z0-9\s]+?)(?:\.\.\.|\.|\,|$)/i;
   const naturalMatch = aiResponse.match(naturalPattern);
@@ -317,11 +341,11 @@ export function buildConversationHistory(
 ): Array<{ role: string; content: string }> {
   // Keep only last N messages to save tokens
   const recentMessages = messages.slice(-maxMessages);
-  
+
   return recentMessages.map(msg => ({
     role: msg.role,
-    content: msg.role === 'user' 
-      ? msg.content 
+    content: msg.role === 'user'
+      ? msg.content
       : smartTruncate(msg.content, 150), // Truncate AI responses
   }));
 }
