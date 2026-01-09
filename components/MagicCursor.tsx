@@ -5,7 +5,7 @@ import { motion, useSpring, useMotionValue } from 'framer-motion';
 const MagicCursor: React.FC = () => {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  
+
   useEffect(() => {
     const checkTouch = () => {
       return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -15,7 +15,7 @@ const MagicCursor: React.FC = () => {
 
   const mouseX = useMotionValue(-100);
   const mouseY = useMotionValue(-100);
-  
+
   const springConfig = { damping: 25, stiffness: 400, mass: 0.5 }; // Stiffer spring for less calculation trail
   const glowX = useSpring(mouseX, springConfig);
   const glowY = useSpring(mouseY, springConfig);
@@ -40,7 +40,7 @@ const MagicCursor: React.FC = () => {
   const starPath = "M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z";
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-[10000] overflow-hidden hidden md:block">
+    <div className="fixed inset-0 pointer-events-none z-[10000] overflow-hidden hidden md:block" style={{ position: 'fixed' }}>
       {/* Layer 1: Sharp Cursor */}
       <motion.div
         className="absolute z-20 text-white will-change-transform"
@@ -53,10 +53,10 @@ const MagicCursor: React.FC = () => {
         }}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-           <path d={starPath} />
+          <path d={starPath} />
         </svg>
       </motion.div>
-      
+
       {/* Layer 2: Trail - Removed blur and mix-blend for performance */}
       <motion.div
         className="absolute z-10 text-nebula-pink/40 will-change-transform"
@@ -71,7 +71,7 @@ const MagicCursor: React.FC = () => {
         transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
       >
         <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
-           <path d={starPath} />
+          <path d={starPath} />
         </svg>
       </motion.div>
     </div>

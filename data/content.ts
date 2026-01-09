@@ -77,21 +77,21 @@ export const content: ContentData = {
       }
     ],
     techStack: {
-        modeling: {
-            title: "Modeling & Architecture",
-            iconName: "layout",
-            skills: ["UML & ERD Design", "BPMN", "Wireframing", "Figma", "Draw.io"]
-        },
-        data: {
-            title: "Data & Development",
-            iconName: "database",
-            skills: ["PostgreSQL", "BigQuery", "Big Table", "SQL", "Data Engineering"]
-        },
-        tools: {
-            title: "Management & Tools",
-            iconName: "terminal",
-            skills: ["Jira & ClickUp", "Apidog", "DBeaver", "Google Workspace", "Microsoft Office"]
-        }
+      modeling: {
+        title: "Modeling & Architecture",
+        iconName: "layout",
+        skills: ["UML & ERD Design", "BPMN", "Wireframing", "Figma", "Draw.io"]
+      },
+      data: {
+        title: "Data & Development",
+        iconName: "database",
+        skills: ["PostgreSQL", "BigQuery", "Big Table", "SQL", "Data Engineering"]
+      },
+      tools: {
+        title: "Management & Tools",
+        iconName: "terminal",
+        skills: ["Jira & ClickUp", "Apidog", "DBeaver", "Google Workspace", "Microsoft Office"]
+      }
     }
   },
   projects: {
@@ -162,9 +162,9 @@ export const content: ContentData = {
         solution: "Leveraged BigQuery technology to architect a scalable data warehouse capable of handling high-volume attendance logs. Designed the approval workflow logic for leave requests (Employee to HR). Structured the data models to facilitate rapid generation of attendance recaps and insights for HR administrators.",
         technologies: ["BigQuery", "HRIS Architecture", "Database Design", "System Flow"],
         results: [
-            "Increased effectiveness and accuracy of attendance recording.",
-            "Streamlined the leave request and approval process.",
-            "Enabled fast processing of large-scale attendance data for reporting."
+          "Increased effectiveness and accuracy of attendance recording.",
+          "Streamlined the leave request and approval process.",
+          "Enabled fast processing of large-scale attendance data for reporting."
         ]
       },
       {
@@ -182,7 +182,7 @@ export const content: ContentData = {
         ]
       },
       {
-        id: 7, 
+        id: 7,
         title: "UTY CREATIVE HUB APP",
         role: "System Analyst",
         description: "Mobile application for booking and managing workspace usage at UTY Creative Hub.",
@@ -190,9 +190,9 @@ export const content: ContentData = {
         solution: "Designed a relational database schema to handle complex scheduling logic, ensuring zero conflicts in room reservations. Created comprehensive system flowcharts to map the user journey from room search to booking confirmation. Defined the logic for availability status updates and user notification triggers to ensure a smooth booking experience.",
         technologies: ["Mobile App Logic", "Database Design", "System Flow", "Booking System"],
         results: [
-            "Eliminated booking conflicts through robust database constraints.",
-            "Streamlined the room reservation process for hub members.",
-            "Improved visibility of room availability in real-time."
+          "Eliminated booking conflicts through robust database constraints.",
+          "Streamlined the room reservation process for hub members.",
+          "Improved visibility of room availability in real-time."
         ]
       },
       {
@@ -204,9 +204,9 @@ export const content: ContentData = {
         solution: "Architected the end-to-end system flow for processing multi-device audio streams in real-time. Designed the logic for data ingestion, pre-processing, and integration with the Deep Learning model to identify specific sound patterns. Mapped the alert trigger mechanism to ensure immediate notification upon detection of suspicious audio events.",
         technologies: ["Deep Learning Integration", "System Architecture", "Real-time Analysis", "Multi-device Support"],
         results: [
-            "Enabled real-time detection of suspicious audio anomalies.",
-            "Facilitated smarter and faster security monitoring responses.",
-            "Successfully integrated multi-device support for broader coverage."
+          "Enabled real-time detection of suspicious audio anomalies.",
+          "Facilitated smarter and faster security monitoring responses.",
+          "Successfully integrated multi-device support for broader coverage."
         ]
       },
       {
@@ -218,9 +218,9 @@ export const content: ContentData = {
         solution: "Designed the complete database structure to store applicant variables and historical data. Architected the system flow to implement the Tsukamoto Fuzzy Inference System algorithm, translating complex fuzzy logic rules into a structured calculation engine. Defined the decision-making logic to accurately categorize loan eligibility based on multi-variable inputs.",
         technologies: ["Fuzzy Inference System (Tsukamoto)", "Database Design", "Web System Flow", "Risk Analysis"],
         results: [
-            "Significantly reduced the rate of loan defaults (Non-Performing Loans).",
-            "Automated the credit scoring process with consistent logic.",
-            "Improved accuracy in assessing borrower eligibility."
+          "Significantly reduced the rate of loan defaults (Non-Performing Loans).",
+          "Automated the credit scoring process with consistent logic.",
+          "Improved accuracy in assessing borrower eligibility."
         ]
       }
     ]
@@ -262,13 +262,13 @@ export const content: ContentData = {
     connectText: "Ready to optimize your system architecture? I'm available for new projects.",
     copyright: "All rights reserved.",
     socials: [
-        { label: "Email", href: "mailto:evinurhidayahh@gmail.com", iconName: "mail" },
-        { label: "LinkedIn", href: "https://linkedin.com/in/evinurhidayah/", iconName: "linkedin" },
-        { label: "Instagram", href: "https://www.instagram.com/evinhdy", iconName: "instagram" }
+      { label: "Email", href: "mailto:evinurhidayahh@gmail.com", iconName: "mail" },
+      { label: "LinkedIn", href: "https://linkedin.com/in/evinurhidayah/", iconName: "linkedin" },
+      { label: "Instagram", href: "https://www.instagram.com/evinhdy", iconName: "instagram" }
     ]
   },
   cv: {
-      url: "https://pub-093d9db34ecc4dfbb984eac2762f7f68.r2.dev/CV%20-%20Evi%20Nur%20Hidayah%20-%20Bahasa%20Inggris%20(1).pdf", 
-      filename: "Evi_Nur_Hidayah_CV.pdf"
-  }
+    url: "https://drive.google.com/file/d/1qylr7eG9zdr-zeFEmZHLKeCl_qjYjCHF/view?usp=sharing",
+    filename: "Evi_Nur_Hidayah_CV.pdf"
+  }
 };
